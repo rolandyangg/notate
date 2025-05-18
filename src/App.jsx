@@ -15,6 +15,11 @@ export default function App() {
         editor={editor}
         theme="light"
         className="blocknote-editor"
+        // editable={true}
+        // onSelectionChange={() => {
+        //   const selection = editor.getSelection();
+        //   console.log(selection);
+        // }}
       />
     </div>
   );
