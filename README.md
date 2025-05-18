@@ -2,11 +2,11 @@
 CS188
 
 ## Getting Started
-'''shell
+```shell
 npm i
 npm install @blocknote/core @blocknote/react @blocknote/mantine
 npm run dev
-'''
+```
 
 ## React + Vite
 
