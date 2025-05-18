@@ -1,6 +1,13 @@
 # notetaking-hci-app
 CS188
 
+## Getting Started
+'''shell
+npm i
+npm install @blocknote/core @blocknote/react @blocknote/mantine
+npm run dev
+'''
+
 ## React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
