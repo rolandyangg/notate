@@ -12,7 +12,6 @@ import {
   useCreateBlockNote,
 } from "@blocknote/react";
 import { HiPencilAlt } from "react-icons/hi"; // drawing icon
-import React from "react";
 
 // Custom "Drawing Block" menu item
 const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
