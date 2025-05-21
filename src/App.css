@@ -1,27 +1,8 @@
 #root {
-  width: 100%;
-  height: 100vh;
-  margin: 0;
-  padding: 0;
-}
-
-/* Add styles for the BlockNote container */
-.blocknote-container {
-  width: 100%;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Style for the BlockNote editor */
-.blocknote-editor {
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  user-select: text;
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
 }
 
 .logo {
@@ -58,90 +39,4 @@
 
 .read-the-docs {
   color: #888;
-}
-
-.corner-button {
-  position: relative;
-  top: 5px;
-  right: 5px;
-  width: 50px;
-  height: 50px;
-  background-color: white;
-  border-radius: 12px;
-  border: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: box-shadow 0.2s, transform 0.2s;
-  z-index: 9999;
-}
-
-/* .corner-button:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  transform: translateY(-2px);
-} */
-
-.corner-button:focus {
-  outline: 2px solid rgba(0, 0, 0, 0.05);
-  outline-offset: 2px;
-}
-
-.corner-button-wrapper {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px; /* spacing between buttons */
-  z-index: 9999;
-}
-
-.corner-button.active {
-  background-color: #555; /* or #444 for the gray you want */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  transition: background 0.2s;
-}
-
-.corner-button.active img {
-  filter: brightness(0) invert(1); /* makes white icon if desired */
-}
-
-/* 
-/* Dropdown annotation menu */
-.annotation-menu {
-  position: relative;
-  margin-top: -23px;
-  padding-top: 100px;
-  top: 5px;
-  right: 5px;
-  background: white;
-  border-bottom-right-radius: 16px;
-  border-bottom-left-radius: 16px;
-  padding: 12px 0;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 50px;
-  gap: 12px;
-  animation: fadeIn 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-  z-index: 0;
-}
-
-.annotation-menu button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  width: 50px;
-  height: 50px;
-  border-radius: 8px;
-  transition: background 0.2s;
-}
-
-.annotation-menu button:hover {
-  background: #f0f0f0;
 }
