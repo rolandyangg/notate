@@ -14,69 +14,10 @@ import {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const isDrawing = useRef(false);
     const isMouseDown = useRef(false);
-    const didDrawInStroke = useRef(false);
     const [isSpaceHeld, setIsSpaceHeld] = useState(false);
     const [size, setSize] = useState({ width: 400, height: 200 });
-    const [brushColor, setBrushColor] = useState("#333");
-    const [brushSize, setBrushSize] = useState(2);
   
-    const undoStack = useRef<string[]>([]);
-    const redoStack = useRef<string[]>([]);
-  
-    const saveState = () => {
-      const dataURL = canvasRef.current?.toDataURL();
-      if (dataURL && undoStack.current[undoStack.current.length - 1] !== dataURL) {
-        undoStack.current.push(dataURL);
-        redoStack.current = [];
-      }
-    };
-  
-    const restoreState = (dataURL: string) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d")!;
-      const img = new Image();
-      img.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      };
-      img.src = dataURL;
-    };
-  
-    const handleUndo = () => {
-      if (undoStack.current.length < 2) return;
-      const current = undoStack.current.pop();
-      if (current) redoStack.current.push(current);
-      restoreState(undoStack.current[undoStack.current.length - 1]);
-    };
-  
-    const handleRedo = () => {
-      if (redoStack.current.length === 0) return;
-      const next = redoStack.current.pop()!;
-      undoStack.current.push(next);
-      restoreState(next);
-    };
-  
-    const handleClearCanvas = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d")!;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      saveState();
-    };
-  
-    useEffect(() => {
-      const handler = (e: KeyboardEvent) => {
-        if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ") {
-          e.preventDefault();
-          if (e.shiftKey) handleRedo();
-          else handleUndo();
-        }
-      };
-      window.addEventListener("keydown", handler);
-      return () => window.removeEventListener("keydown", handler);
-    }, []);
-  
+    // Spacebar drawing logic
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.code === "Space") {
@@ -98,16 +39,12 @@ import {
       };
     }, []);
   
+    // Drawing handlers
     const startDrawing = (x: number, y: number) => {
       const ctx = canvasRef.current!.getContext("2d")!;
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.lineWidth = brushSize;
-      ctx.strokeStyle = brushColor;
       ctx.beginPath();
       ctx.moveTo(x, y);
       isDrawing.current = true;
-      didDrawInStroke.current = false;
     };
   
     const draw = (x: number, y: number) => {
@@ -115,7 +52,6 @@ import {
       const ctx = canvasRef.current!.getContext("2d")!;
       ctx.lineTo(x, y);
       ctx.stroke();
-      didDrawInStroke.current = true;
     };
   
     const stopDrawing = () => {
@@ -123,7 +59,6 @@ import {
       const ctx = canvasRef.current!.getContext("2d")!;
       ctx.closePath();
       isDrawing.current = false;
-      if (didDrawInStroke.current) saveState();
     };
   
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -136,9 +71,11 @@ import {
       const rect = canvasRef.current!.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+  
       if ((isMouseDown.current || isSpaceHeld) && !isDrawing.current) {
         startDrawing(x, y);
       }
+  
       if (isMouseDown.current || isSpaceHeld) {
         draw(x, y);
       }
@@ -149,31 +86,28 @@ import {
       stopDrawing();
     };
   
+    // Resize without clearing
     const handleResizeMouseDown = (e: React.MouseEvent) => {
       e.preventDefault();
-  
       const canvas = canvasRef.current!;
-      const imageDataURL = canvas.toDataURL();
-      const aspectRatio = size.width / size.height;
+      const ctx = canvas.getContext("2d")!;
+      const oldImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   
       const startX = e.clientX;
       const startY = e.clientY;
       const startWidth = size.width;
+      const startHeight = size.height;
   
       const onMouseMove = (e: MouseEvent) => {
-        const delta = Math.max(e.clientX - startX, e.clientY - startY);
-        const newWidth = Math.max(100, startWidth + delta);
-        const newHeight = newWidth / aspectRatio;
+        const newWidth = Math.max(100, startWidth + (e.clientX - startX));
+        const newHeight = Math.max(100, startHeight + (e.clientY - startY));
   
-        setSize(() => {
+        // TEMP: Wait to redraw after canvas renders
+        setSize(prev => {
           setTimeout(() => {
-            const ctx = canvas.getContext("2d")!;
-            const img = new Image();
-            img.onload = () => {
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(img, 0, 0, newWidth, newHeight);
-            };
-            img.src = imageDataURL;
+            const newCanvas = canvasRef.current!;
+            const newCtx = newCanvas.getContext("2d")!;
+            newCtx.putImageData(oldImageData, 0, 0);
           }, 0);
           return { width: newWidth, height: newHeight };
         });
@@ -226,59 +160,6 @@ import {
             cursor: "nwse-resize",
           }}
         />
-        {/* Control buttons */}
-        <div
-          style={{
-            position: "absolute",
-            top: 4,
-            left: 4,
-            display: "flex",
-            gap: 6,
-            backgroundColor: "rgba(255,255,255,0.7)",
-            padding: "2px 6px",
-            borderRadius: 4,
-          }}
-        >
-          <button onClick={handleUndo} style={{ fontSize: 12 }}>↶ Undo</button>
-          <button onClick={handleRedo} style={{ fontSize: 12 }}>↷ Redo</button>
-          <button onClick={handleClearCanvas} style={{ fontSize: 12 }}>🧹 Clear</button>
-        </div>
-        {/* Color & Size Controls */}
-        <div
-          style={{
-            position: "absolute",
-            top: 40,
-            left: 4,
-            backgroundColor: "rgba(255,255,255,0.7)",
-            padding: "4px 6px",
-            borderRadius: 4,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <label style={{ fontSize: 12 }}>🎨</label>
-          <input
-            type="color"
-            value={brushColor}
-            onChange={(e) => setBrushColor(e.target.value)}
-            style={{
-              width: 24,
-              height: 24,
-              border: "none",
-              cursor: "pointer",
-            }}
-          />
-          <label style={{ fontSize: 12 }}>✏️</label>
-          <input
-            type="range"
-            min={1}
-            max={20}
-            value={brushSize}
-            onChange={(e) => setBrushSize(Number(e.target.value))}
-            style={{ width: 80 }}
-          />
-        </div>
       </div>
     );
   };
