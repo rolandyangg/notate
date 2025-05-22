@@ -2,6 +2,8 @@ import {
   BlockNoteEditor,
   filterSuggestionItems,
   insertOrUpdateBlock,
+  BlockNoteSchema,
+  defaultBlockSpecs,
 } from "@blocknote/core";
 import "@blocknote/core/fonts/inter.css";
 import { BlockNoteView } from "@blocknote/mantine";
@@ -12,25 +14,20 @@ import {
   useCreateBlockNote,
 } from "@blocknote/react";
 import { HiPencilAlt } from "react-icons/hi"; // drawing icon
+import { Drawing } from "./Drawing.tsx"
 
 // Custom "Drawing Block" menu item
 const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
   title: "Insert Drawing Block",
   onItemClick: () =>
     insertOrUpdateBlock(editor, {
-      type: "paragraph",
-      content: [
-        {
-          type: "text",
-          text: "🎨 [Drawing block placeholder]",
-          styles: { italic: true },
-        },
-      ],
+      type: "drawing", // ✅ this is the key change!
+      props: {},
     }),
   aliases: ["drawing", "sketch", "paint"],
   group: "Other",
   icon: <HiPencilAlt size={18} />,
-  subtext: "Insert a placeholder for a drawing canvas or image",
+  subtext: "Insert a drawable canvas block",
 });
 
 // List containing all default Slash Menu Items, as well as our custom one.
@@ -41,8 +38,17 @@ const getCustomSlashMenuItems = (
   insertDrawingBlockItem(editor),
 ];
 
+const schema = BlockNoteSchema.create({
+  blockSpecs: {
+    ...defaultBlockSpecs,
+    drawing: Drawing,
+  }
+});
+
 function App() {
-  const editor = useCreateBlockNote();
+  const editor = useCreateBlockNote({
+    schema
+  });
 
   return (
     <div className="blocknote-container">
