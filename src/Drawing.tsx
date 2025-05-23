@@ -32,6 +32,8 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
     const [brushSize, setBrushSize] = useState(2);
     const [tool, setTool] = useState("pen");
     const [isHovered, setIsHovered] = useState(false);
+    const [isCanvasFocused, setIsCanvasFocused] = useState(false);
+
   
     const undoStack = useRef<string[]>([]);
     const redoStack = useRef<string[]>([]);
@@ -130,16 +132,27 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
     };
   
     useEffect(() => {
-      const handler = (e: KeyboardEvent) => {
-        if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ") {
-          e.preventDefault();
-          if (e.shiftKey) handleRedo();
-          else handleUndo();
-        }
-      };
-      window.addEventListener("keydown", handler);
-      return () => window.removeEventListener("keydown", handler);
-    }, []);
+        const handler = (e: KeyboardEvent) => {
+          if (!(isHovered || isCanvasFocused)) return;
+      
+          const isInput = ["INPUT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName);
+          if (!isInput && (e.ctrlKey || e.metaKey) && e.code === "KeyZ") {
+            e.preventDefault();
+            if (e.shiftKey) {
+              handleRedo();
+            } else {
+              handleUndo();
+            }
+          }
+        };
+      
+        document.addEventListener("keydown", handler, true);
+        return () => {
+          document.removeEventListener("keydown", handler, true);
+        };
+      }, [isHovered, isCanvasFocused]);
+      
+      
   
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -351,7 +364,11 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       }}
     >
       <canvas
+        tabIndex={0}
         ref={canvasRef}
+        onFocus={() => setIsCanvasFocused(true)}
+onBlur={() => setIsCanvasFocused(false)}
+
         width={size.width}
         height={size.height}
         style={{ display: "block", width: "100%", height: "100%" }}
