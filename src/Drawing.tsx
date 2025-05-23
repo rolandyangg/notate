@@ -399,60 +399,136 @@ const DrawingCanvas = () => {
           cursor: "nwse-resize",
         }}
       />
-      <div
-        style={{
-          position: "absolute",
-          top: 4,
-          left: 4,
-          display: "flex",
-          gap: 6,
-          backgroundColor: "rgba(255,255,255,0.7)",
-          padding: "2px 6px",
-          borderRadius: 4,
-        }}
-      >
-        <button onClick={handleUndo} style={{ fontSize: 12 }}>↶ Undo</button>
-        <button onClick={handleRedo} style={{ fontSize: 12 }}>↷ Redo</button>
-        <button onClick={handleClearCanvas} style={{ fontSize: 12 }}>🧹 Clear</button>
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          top: 40,
-          left: 4,
-          backgroundColor: "rgba(255,255,255,0.7)",
-          padding: "4px 6px",
-          borderRadius: 4,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <label style={{ fontSize: 12 }}>🎨</label>
-        <input
-          type="color"
-          value={brushColor}
-          onChange={(e) => setBrushColor(e.target.value)}
-          style={{ width: 24, height: 24, border: "none", cursor: "pointer" }}
-        />
-        <label style={{ fontSize: 12 }}>✏️</label>
-        <input
-          type="range"
-          min={1}
-          max={20}
-          value={brushSize}
-          onChange={(e) => setBrushSize(Number(e.target.value))}
-          style={{ width: 80 }}
-        />
-        <label style={{ fontSize: 12 }}>🛠</label>
-        <select value={tool} onChange={(e) => setTool(e.target.value)} style={{ fontSize: 12 }}>
-          <option value="pen">Pen</option>
-          <option value="line">Line</option>
-          <option value="rect">Rectangle</option>
-          <option value="ellipse">Ellipse</option>
-          <option value="text">Text</option>
-        </select>
-      </div>
+<div
+  style={{
+    position: "absolute",
+    top: 6,
+    left: "50%",
+    transform: "translateX(-50%)", // Center horizontally
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#fff",
+    border: "1px solid #ccc",
+    borderRadius: 8,
+    boxShadow: "0px 0px 4px rgba(0, 0, 0, 0.1)",
+    padding: "6px 10px",
+    zIndex: 10, // Optional: ensure it stays above canvas
+  }}
+>
+  {/* Undo */}
+  <button
+    onClick={handleUndo}
+    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#e0e0e0")}
+    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#fff")}
+    style={{
+      fontSize: 12,
+      backgroundColor: "#fff",
+      color: "#333",
+      border: "none",
+      borderRadius: 6,
+      padding: "6px 10px",
+      cursor: "pointer",
+    }}
+    title="Undo"
+  >
+    ↶
+  </button>
+
+  {/* Redo */}
+  <button
+    onClick={handleRedo}
+    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#e0e0e0")}
+    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#fff")}
+    style={{
+      fontSize: 12,
+      backgroundColor: "#fff",
+      color: "#333",
+      border: "none",
+      borderRadius: 6,
+      padding: "6px 10px",
+      cursor: "pointer",
+    }}
+    title="Redo"
+  >
+    ↷
+  </button>
+
+  {/* Clear */}
+  <button
+    onClick={handleClearCanvas}
+    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#e0e0e0")}
+    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#fff")}
+    style={{
+      fontSize: 12,
+      backgroundColor: "#fff",
+      color: "#333",
+      border: "none",
+      borderRadius: 6,
+      padding: "6px 10px",
+      cursor: "pointer",
+    }}
+    title="Clear Canvas"
+  >
+    🧹
+  </button>
+
+{/* Brush Size */}
+<div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+  <input
+    type="range"
+    min={1}
+    max={20}
+    value={brushSize}
+    onChange={(e) => setBrushSize(Number(e.target.value))}
+    style={{
+      width: 80,
+      cursor: "pointer",
+    }}
+  />
+  <span style={{ fontSize: 12, color: "#333", minWidth: 24 }}>{brushSize}px</span>
+</div>
+
+  {/* Tool Selector */}
+  <select
+    value={tool}
+    onChange={(e) => setTool(e.target.value)}
+    style={{
+      fontSize: 12,
+      padding: "4px 6px",
+      borderRadius: 4,
+      border: "1px solid #ccc",
+      backgroundColor: "#fff",
+      cursor: "pointer",
+    }}
+  >
+    <option value="pen">Pen</option>
+    <option value="line">Line</option>
+    <option value="rect">Rectangle</option>
+    <option value="ellipse">Ellipse</option>
+    <option value="text">Text</option>
+  </select>
+
+    {/* Brush Color */}
+  <input
+    type="color"
+    value={brushColor}
+    onChange={(e) => setBrushColor(e.target.value)}
+    style={{
+      width: 24,
+      height: 24,
+      border: "none",
+      padding: 0,
+      cursor: "pointer",
+      background: "none",
+    }}
+  />
+</div>
+
+
+
+
     </div>
   );
 };

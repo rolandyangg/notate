@@ -47,7 +47,16 @@ const schema = BlockNoteSchema.create({
 
 function App() {
   const editor = useCreateBlockNote({
-    schema
+    schema,
+    initialContent: [
+      {
+        type: "drawing"
+      },
+      {
+        type: "paragraph",
+        content: "Start typing below: "
+      }
+    ]
   });
 
   return (
