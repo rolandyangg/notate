@@ -107,7 +107,7 @@ import {
         if (e.code === "Space") {
           e.preventDefault();
           setIsSpaceHeld(false);
-          if (tool === "line" && isDrawing.current) {
+          if ((tool === "line" || tool === "rect" || tool === "ellipse") && isDrawing.current) {
             stopDrawing();
           }
         }
@@ -149,47 +149,84 @@ import {
     };
   
     const draw = (x: number, y: number) => {
-      if (!isDrawing.current || !roughCanvasRef.current) return;
-      const canvas = canvasRef.current!;
-      const ctx = canvas.getContext("2d")!;
-      const rc = roughCanvasRef.current;
-  
-      if (tool === "pen") {
-        rc.line(startX.current, startY.current, x, y, {
-          stroke: brushColor,
-          strokeWidth: brushSize,
-        });
-        startX.current = x;
-        startY.current = y;
-        didDrawInStroke.current = true;
-      } else if (tool === "line") {
+        if (!isDrawing.current || !roughCanvasRef.current) return;
+        const canvas = canvasRef.current!;
+        const ctx = canvas.getContext("2d")!;
+        const rc = roughCanvasRef.current;
+      
         currentX.current = x;
         currentY.current = y;
-        const img = new Image();
-        img.onload = () => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          rc.line(startX.current, startY.current, currentX.current, currentY.current, {
+      
+        if (tool === "pen") {
+          // Draw directly on the canvas for pen tool
+          rc.line(startX.current, startY.current, x, y, {
             stroke: brushColor,
             strokeWidth: brushSize,
           });
-        };
-        img.src = lastSavedSnapshot.current;
-      }
-    };
+          startX.current = x;
+          startY.current = y;
+          didDrawInStroke.current = true;
+        } else {
+          // Restore the last saved snapshot
+          const img = new Image();
+          img.onload = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            if (tool === "line") {
+              rc.line(startX.current, startY.current, currentX.current, currentY.current, {
+                stroke: brushColor,
+                strokeWidth: brushSize,
+              });
+            } else if (tool === "rect") {
+              const width = currentX.current - startX.current;
+              const height = currentY.current - startY.current;
+              rc.rectangle(startX.current, startY.current, width, height, {
+                stroke: brushColor,
+                strokeWidth: brushSize,
+              });
+            } else if (tool === "ellipse") {
+              const cx = (startX.current + currentX.current) / 2;
+              const cy = (startY.current + currentY.current) / 2;
+              const rx = Math.abs(currentX.current - startX.current) / 2;
+              const ry = Math.abs(currentY.current - startY.current) / 2;
+              rc.ellipse(cx, cy, rx * 2, ry * 2, {
+                stroke: brushColor,
+                strokeWidth: brushSize,
+              });
+            }
+          };
+          img.src = lastSavedSnapshot.current;
+        }
+      };
+      
   
     const stopDrawing = () => {
       if (!isDrawing.current || !roughCanvasRef.current) return;
       isDrawing.current = false;
-  
       const rc = roughCanvasRef.current;
       if (tool === "line") {
         rc.line(startX.current, startY.current, currentX.current, currentY.current, {
           stroke: brushColor,
           strokeWidth: brushSize,
         });
-        saveState();
-      } else if (tool === "pen" && didDrawInStroke.current) {
+      } else if (tool === "rect") {
+        const width = currentX.current - startX.current;
+        const height = currentY.current - startY.current;
+        rc.rectangle(startX.current, startY.current, width, height, {
+          stroke: brushColor,
+          strokeWidth: brushSize,
+        });
+      } else if (tool === "ellipse") {
+        const cx = (startX.current + currentX.current) / 2;
+        const cy = (startY.current + currentY.current) / 2;
+        const rx = Math.abs(currentX.current - startX.current) / 2;
+        const ry = Math.abs(currentY.current - startY.current) / 2;
+        rc.ellipse(cx, cy, rx * 2, ry * 2, {
+          stroke: brushColor,
+          strokeWidth: brushSize,
+        });
+      }
+      if ((tool === "line" || tool === "rect" || tool === "ellipse") || (tool === "pen" && didDrawInStroke.current)) {
         saveState();
       }
     };
@@ -336,6 +373,8 @@ import {
           <select value={tool} onChange={(e) => setTool(e.target.value)} style={{ fontSize: 12 }}>
             <option value="pen">Pen</option>
             <option value="line">Line</option>
+            <option value="rect">Rectangle</option>
+            <option value="ellipse">Ellipse</option>
           </select>
         </div>
       </div>
