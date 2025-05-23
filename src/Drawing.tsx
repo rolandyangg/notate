@@ -3,6 +3,7 @@ import {
     type ReactCustomBlockImplementation,
   } from "@blocknote/react";
   import React, { useEffect, useRef, useState } from "react";
+  import rough from "roughjs/bin/rough";
   
   const drawingBlockSpec = {
     type: "drawing",
@@ -12,22 +13,38 @@ import {
   
   const DrawingCanvas = () => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const roughCanvasRef = useRef<ReturnType<typeof rough.canvas> | null>(null);
     const isDrawing = useRef(false);
     const isMouseDown = useRef(false);
     const didDrawInStroke = useRef(false);
+    const startX = useRef(0);
+    const startY = useRef(0);
+    const currentX = useRef(0);
+    const currentY = useRef(0);
+    const lastSavedSnapshot = useRef<string>("");
+  
     const [isSpaceHeld, setIsSpaceHeld] = useState(false);
     const [size, setSize] = useState({ width: 400, height: 200 });
     const [brushColor, setBrushColor] = useState("#333");
     const [brushSize, setBrushSize] = useState(2);
+    const [tool, setTool] = useState("pen");
   
     const undoStack = useRef<string[]>([]);
     const redoStack = useRef<string[]>([]);
+  
+    useEffect(() => {
+      if (canvasRef.current) {
+        roughCanvasRef.current = rough.canvas(canvasRef.current);
+        saveState();
+      }
+    }, []);
   
     const saveState = () => {
       const dataURL = canvasRef.current?.toDataURL();
       if (dataURL && undoStack.current[undoStack.current.length - 1] !== dataURL) {
         undoStack.current.push(dataURL);
         redoStack.current = [];
+        lastSavedSnapshot.current = dataURL;
       }
     };
   
@@ -48,6 +65,7 @@ import {
       const current = undoStack.current.pop();
       if (current) redoStack.current.push(current);
       restoreState(undoStack.current[undoStack.current.length - 1]);
+      lastSavedSnapshot.current = undoStack.current[undoStack.current.length - 1];
     };
   
     const handleRedo = () => {
@@ -55,6 +73,7 @@ import {
       const next = redoStack.current.pop()!;
       undoStack.current.push(next);
       restoreState(next);
+      lastSavedSnapshot.current = next;
     };
   
     const handleClearCanvas = () => {
@@ -86,44 +105,93 @@ import {
       };
       const handleKeyUp = (e: KeyboardEvent) => {
         if (e.code === "Space") {
+          e.preventDefault();
           setIsSpaceHeld(false);
-          stopDrawing();
+          if (tool === "line" && isDrawing.current) {
+            stopDrawing();
+          }
         }
       };
-      window.addEventListener("keydown", handleKeyDown);
-      window.addEventListener("keyup", handleKeyUp);
+  
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+  
+      const handleMouseEnter = () => {
+        window.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("keyup", handleKeyUp);
+      };
+  
+      const handleMouseLeave = () => {
+        window.removeEventListener("keydown", handleKeyDown);
+        window.removeEventListener("keyup", handleKeyUp);
+        setIsSpaceHeld(false);
+        stopDrawing();
+      };
+  
+      canvas.addEventListener("mouseenter", handleMouseEnter);
+      canvas.addEventListener("mouseleave", handleMouseLeave);
+  
       return () => {
+        canvas.removeEventListener("mouseenter", handleMouseEnter);
+        canvas.removeEventListener("mouseleave", handleMouseLeave);
         window.removeEventListener("keydown", handleKeyDown);
         window.removeEventListener("keyup", handleKeyUp);
       };
-    }, []);
+    }, [tool]);
   
     const startDrawing = (x: number, y: number) => {
-      const ctx = canvasRef.current!.getContext("2d")!;
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.lineWidth = brushSize;
-      ctx.strokeStyle = brushColor;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
+      startX.current = x;
+      startY.current = y;
+      currentX.current = x;
+      currentY.current = y;
       isDrawing.current = true;
       didDrawInStroke.current = false;
     };
   
     const draw = (x: number, y: number) => {
-      if (!isDrawing.current) return;
-      const ctx = canvasRef.current!.getContext("2d")!;
-      ctx.lineTo(x, y);
-      ctx.stroke();
-      didDrawInStroke.current = true;
+      if (!isDrawing.current || !roughCanvasRef.current) return;
+      const canvas = canvasRef.current!;
+      const ctx = canvas.getContext("2d")!;
+      const rc = roughCanvasRef.current;
+  
+      if (tool === "pen") {
+        rc.line(startX.current, startY.current, x, y, {
+          stroke: brushColor,
+          strokeWidth: brushSize,
+        });
+        startX.current = x;
+        startY.current = y;
+        didDrawInStroke.current = true;
+      } else if (tool === "line") {
+        currentX.current = x;
+        currentY.current = y;
+        const img = new Image();
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          rc.line(startX.current, startY.current, currentX.current, currentY.current, {
+            stroke: brushColor,
+            strokeWidth: brushSize,
+          });
+        };
+        img.src = lastSavedSnapshot.current;
+      }
     };
   
     const stopDrawing = () => {
-      if (!isDrawing.current) return;
-      const ctx = canvasRef.current!.getContext("2d")!;
-      ctx.closePath();
+      if (!isDrawing.current || !roughCanvasRef.current) return;
       isDrawing.current = false;
-      if (didDrawInStroke.current) saveState();
+  
+      const rc = roughCanvasRef.current;
+      if (tool === "line") {
+        rc.line(startX.current, startY.current, currentX.current, currentY.current, {
+          stroke: brushColor,
+          strokeWidth: brushSize,
+        });
+        saveState();
+      } else if (tool === "pen" && didDrawInStroke.current) {
+        saveState();
+      }
     };
   
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -151,11 +219,9 @@ import {
   
     const handleResizeMouseDown = (e: React.MouseEvent) => {
       e.preventDefault();
-  
       const canvas = canvasRef.current!;
       const imageDataURL = canvas.toDataURL();
       const aspectRatio = size.width / size.height;
-  
       const startX = e.clientX;
       const startY = e.clientY;
       const startWidth = size.width;
@@ -203,17 +269,12 @@ import {
           ref={canvasRef}
           width={size.width}
           height={size.height}
-          style={{
-            display: "block",
-            width: "100%",
-            height: "100%",
-          }}
+          style={{ display: "block", width: "100%", height: "100%" }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={stopDrawing}
         />
-        {/* Resize handle */}
         <div
           onMouseDown={handleResizeMouseDown}
           style={{
@@ -226,7 +287,6 @@ import {
             cursor: "nwse-resize",
           }}
         />
-        {/* Control buttons */}
         <div
           style={{
             position: "absolute",
@@ -243,7 +303,6 @@ import {
           <button onClick={handleRedo} style={{ fontSize: 12 }}>↷ Redo</button>
           <button onClick={handleClearCanvas} style={{ fontSize: 12 }}>🧹 Clear</button>
         </div>
-        {/* Color & Size Controls */}
         <div
           style={{
             position: "absolute",
@@ -262,12 +321,7 @@ import {
             type="color"
             value={brushColor}
             onChange={(e) => setBrushColor(e.target.value)}
-            style={{
-              width: 24,
-              height: 24,
-              border: "none",
-              cursor: "pointer",
-            }}
+            style={{ width: 24, height: 24, border: "none", cursor: "pointer" }}
           />
           <label style={{ fontSize: 12 }}>✏️</label>
           <input
@@ -278,6 +332,11 @@ import {
             onChange={(e) => setBrushSize(Number(e.target.value))}
             style={{ width: 80 }}
           />
+          <label style={{ fontSize: 12 }}>🛠</label>
+          <select value={tool} onChange={(e) => setTool(e.target.value)} style={{ fontSize: 12 }}>
+            <option value="pen">Pen</option>
+            <option value="line">Line</option>
+          </select>
         </div>
       </div>
     );
