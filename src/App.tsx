@@ -13,7 +13,7 @@ import {
   SuggestionMenuController,
   useCreateBlockNote,
 } from "@blocknote/react";
-import { HiPencilAlt } from "react-icons/hi"; // drawing icon
+import { HiPencilAlt, HiPhotograph } from "react-icons/hi"; // drawing icon
 import { Drawing } from "./Drawing.tsx"
 
 // Custom "Drawing Block" menu item
@@ -30,12 +30,28 @@ const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
   subtext: "Insert a drawable canvas block",
 });
 
+const insertImageBlockItem = (editor: BlockNoteEditor) => ({
+  title: "Insert Image Block",
+  onItemClick: () =>
+    insertOrUpdateBlock(editor, {
+      type: "image", // ✅ this is the key change!
+      props: {},
+    }),
+  aliases: ["image"],
+  group: "Other",
+  icon: <HiPhotograph size={18} />,
+  subtext: "Insert an annotatable image block",
+});
+
 // List containing all default Slash Menu Items, as well as our custom one.
 const getCustomSlashMenuItems = (
   editor: BlockNoteEditor,
 ): any[] => [
-  ...getDefaultReactSlashMenuItems(editor),
   insertDrawingBlockItem(editor),
+  insertImageBlockItem(editor),
+  ...getDefaultReactSlashMenuItems(editor).filter(item =>
+    !["Image", "Video", "Audio", "File", "Emoji"].includes(item.title)
+  )
 ];
 
 const schema = BlockNoteSchema.create({
@@ -48,15 +64,15 @@ const schema = BlockNoteSchema.create({
 function App() {
   const editor = useCreateBlockNote({
     schema,
-    initialContent: [
-      {
-        type: "drawing"
-      },
-      {
-        type: "paragraph",
-        content: "Start typing below: "
-      }
-    ]
+    // initialContent: [
+    //   {
+    //     type: "drawing"
+    //   },
+    //   {
+    //     type: "paragraph",
+    //     content: "Start typing below: "
+    //   }
+    // ]
   });
 
   return (
