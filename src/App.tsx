@@ -15,6 +15,7 @@ import {
 } from "@blocknote/react";
 import { HiPencilAlt, HiPhotograph } from "react-icons/hi"; // drawing icon
 import { Drawing } from "./Drawing.tsx"
+import { Image } from "./Image";
 
 // Custom "Drawing Block" menu item
 const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
@@ -34,7 +35,7 @@ const insertImageBlockItem = (editor: BlockNoteEditor) => ({
   title: "Insert Image Block",
   onItemClick: () =>
     insertOrUpdateBlock(editor, {
-      type: "image", // ✅ this is the key change!
+      type: "imageUpload", // ✅ this is the key change!
       props: {},
     }),
   aliases: ["image"],
@@ -58,6 +59,7 @@ const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     drawing: Drawing,
+    imageUpload: Image
   }
 });
 

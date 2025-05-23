@@ -11,7 +11,7 @@ const drawingBlockSpec = {
   content: "none" as const,
 };
 
-const DrawingCanvas = () => {
+export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const roughCanvasRef = useRef<ReturnType<typeof rough.canvas> | null>(null);
     const isDrawing = useRef(false);
@@ -22,6 +22,9 @@ const DrawingCanvas = () => {
     const currentX = useRef(0);
     const currentY = useRef(0);
     const lastSavedSnapshot = useRef<string>("");
+    const containerRef = useRef<HTMLDivElement>(null);
+    const toolbarRef = useRef<HTMLDivElement>(null);
+
   
     const [isSpaceHeld, setIsSpaceHeld] = useState(false);
     const [size, setSize] = useState({ width: 400, height: 200 });
@@ -32,13 +35,54 @@ const DrawingCanvas = () => {
   
     const undoStack = useRef<string[]>([]);
     const redoStack = useRef<string[]>([]);
-  
+
     useEffect(() => {
-      if (canvasRef.current) {
-        roughCanvasRef.current = rough.canvas(canvasRef.current);
-        saveState();
-      }
-    }, []);
+        const handleClick = (e: MouseEvent) => {
+          if (
+            containerRef.current?.contains(e.target as Node) ||
+            toolbarRef.current?.contains(e.target as Node)
+          ) {
+            setIsHovered(true);
+          } else {
+            setIsHovered(false);
+          }
+        };
+      
+        document.addEventListener("mousedown", handleClick);
+        return () => {
+          document.removeEventListener("mousedown", handleClick);
+        };
+      }, []);
+      
+  
+      useEffect(() => {
+        if (canvasRef.current) {
+          roughCanvasRef.current = rough.canvas(canvasRef.current);
+          const ctx = canvasRef.current.getContext("2d")!;
+      
+          if (backgroundImage) {
+            setBrushColor("#ff0000"); // ✅ Set brush to red
+      
+            const img = new Image();
+            img.onload = () => {
+              const newSize = {
+                width: img.naturalWidth,
+                height: img.naturalHeight,
+              };
+              setSize(newSize);
+              setTimeout(() => {
+                ctx.clearRect(0, 0, newSize.width, newSize.height);
+                ctx.drawImage(img, 0, 0, newSize.width, newSize.height);
+                saveState();
+              }, 0);
+            };
+            img.src = backgroundImage;
+          } else {
+            saveState();
+          }
+        }
+      }, [backgroundImage]);
+      
   
     const saveState = () => {
       const dataURL = canvasRef.current?.toDataURL();
@@ -295,8 +339,9 @@ const DrawingCanvas = () => {
   return (
     <div
       contentEditable={false}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+    //   onMouseEnter={() => setIsHovered(true)}
+    //   onMouseLeave={() => setIsHovered(false)}
+        ref={containerRef}
       style={{
         position: "relative",
         display: "inline-block",
@@ -329,6 +374,7 @@ const DrawingCanvas = () => {
       />
     {isHovered && (
         <div
+        ref={toolbarRef}
         style={{
           position: "absolute",
           top: 6,
