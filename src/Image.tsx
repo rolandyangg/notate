@@ -2,7 +2,7 @@ import {
     createReactBlockSpec,
     type ReactCustomBlockImplementation,
   } from "@blocknote/react";
-  import React, { useRef, useState } from "react";
+  import React, { useRef } from "react";
   import { DrawingCanvas } from "./Drawing.tsx"; // Make sure this path is correct
   
   const imageUploadBlockSpec = {
