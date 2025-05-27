@@ -8,12 +8,74 @@ interface Annotation {
   isEditing: boolean;
 }
 
+interface DragState {
+  id: string;
+  type: 'textbox' | 'point';
+  startX: number;
+  startY: number;
+}
+
 export const AnnotationOverlay = () => {
   const [isAnnotationMode, setIsAnnotationMode] = useState(false);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [currentAnnotation, setCurrentAnnotation] = useState<Partial<Annotation> | null>(null);
   const [step, setStep] = useState<'idle' | 'selecting-point' | 'placing-textbox'>('idle');
+  const [dragState, setDragState] = useState<DragState | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+
+  // Handle mouse move for dragging
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!dragState) return;
+
+    const dx = e.clientX - dragState.startX;
+    const dy = e.clientY - dragState.startY;
+
+    setAnnotations(annotations.map(ann => {
+      if (ann.id === dragState.id) {
+        if (dragState.type === 'textbox') {
+          return {
+            ...ann,
+            textBox: {
+              x: ann.textBox.x + dx,
+              y: ann.textBox.y + dy
+            }
+          };
+        } else {
+          return {
+            ...ann,
+            startPoint: {
+              x: ann.startPoint.x + dx,
+              y: ann.startPoint.y + dy
+            }
+          };
+        }
+      }
+      return ann;
+    }));
+
+    setDragState({
+      ...dragState,
+      startX: e.clientX,
+      startY: e.clientY
+    });
+  };
+
+  // Handle mouse up to end dragging
+  const handleMouseUp = () => {
+    setDragState(null);
+  };
+
+  // Add and remove event listeners for drag
+  useEffect(() => {
+    if (dragState) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragState]);
 
   // Handle click events for annotation placement
   const handleOverlayClick = (e: React.MouseEvent) => {
@@ -64,38 +126,50 @@ export const AnnotationOverlay = () => {
   };
 
   // Draw arrow between points
-  const drawArrow = (start: { x: number; y: number }, end: { x: number; y: number }) => {
+  const drawArrow = (start: { x: number; y: number }, end: { x: number; y: number }, id: string) => {
     const dx = end.x - start.x;
     const dy = end.y - start.y;
     const angle = Math.atan2(dy, dx) * 180 / Math.PI;
     const length = Math.sqrt(dx * dx + dy * dy);
 
     return (
-      <div
-        style={{
-          position: 'absolute',
-          left: start.x,
-          top: start.y,
-          width: length,
-          height: '2px',
-          backgroundColor: '#666',
-          transform: `rotate(${angle}deg)`,
-          transformOrigin: '0 0',
-        }}
-      >
+      <>
+        {/* Circle at the start point */}
+        <div
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            setDragState({
+              id,
+              type: 'point',
+              startX: e.clientX,
+              startY: e.clientY
+            });
+          }}
+          style={{
+            position: 'absolute',
+            left: start.x - 4,
+            top: start.y - 4,
+            width: '8px',
+            height: '8px',
+            backgroundColor: '#666',
+            borderRadius: '50%',
+            cursor: 'move',
+          }}
+        />
+        {/* Line connecting circle to text box */}
         <div
           style={{
             position: 'absolute',
-            right: 0,
-            top: -4,
-            width: 0,
-            height: 0,
-            borderLeft: '6px solid #666',
-            borderTop: '4px solid transparent',
-            borderBottom: '4px solid transparent',
+            left: start.x,
+            top: start.y,
+            width: length,
+            height: '2px',
+            backgroundColor: '#666',
+            transform: `rotate(${angle}deg)`,
+            transformOrigin: '0 0',
           }}
         />
-      </div>
+      </>
     );
   };
 
@@ -174,10 +248,25 @@ export const AnnotationOverlay = () => {
       {annotations.map(annotation => (
         <div key={annotation.id}>
           {/* Arrow */}
-          {drawArrow(annotation.startPoint, annotation.textBox)}
+          {drawArrow(annotation.startPoint, annotation.textBox, annotation.id)}
           
           {/* Text Box */}
           <div
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              setDragState({
+                id: annotation.id,
+                type: 'textbox',
+                startX: e.clientX,
+                startY: e.clientY
+              });
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setAnnotations(annotations.map(ann =>
+                ann.id === annotation.id ? { ...ann, isEditing: true } : ann
+              ));
+            }}
             style={{
               position: 'absolute',
               left: annotation.textBox.x,
@@ -188,13 +277,40 @@ export const AnnotationOverlay = () => {
               padding: '8px',
               boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
               zIndex: 1000,
+              cursor: 'move',
             }}
           >
             {annotation.isEditing ? (
               <textarea
                 autoFocus
-                defaultValue={annotation.text}
+                value={annotation.text}
+                onChange={(e) => {
+                  setAnnotations(annotations.map(ann =>
+                    ann.id === annotation.id ? { ...ann, text: e.target.value } : ann
+                  ));
+                }}
                 onBlur={(e) => handleTextChange(annotation.id, e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleTextChange(annotation.id, e.currentTarget.value);
+                    setAnnotations(annotations.map(ann =>
+                      ann.id === annotation.id ? { ...ann, isEditing: false } : ann
+                    ));
+                  } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const start = e.currentTarget.selectionStart;
+                    const end = e.currentTarget.selectionEnd;
+                    const newValue = annotation.text.substring(0, start) + '\t' + annotation.text.substring(end);
+                    setAnnotations(annotations.map(ann =>
+                      ann.id === annotation.id ? { ...ann, text: newValue } : ann
+                    ));
+                    // Move cursor after the tab
+                    setTimeout(() => {
+                      e.currentTarget.selectionStart = e.currentTarget.selectionEnd = start + 1;
+                    }, 0);
+                  }
+                }}
                 style={{
                   width: '200px',
                   minHeight: '60px',
@@ -203,13 +319,8 @@ export const AnnotationOverlay = () => {
                 }}
               />
             ) : (
-              <div
-                onClick={() => setAnnotations(annotations.map(ann =>
-                  ann.id === annotation.id ? { ...ann, isEditing: true } : ann
-                ))}
-                style={{ cursor: 'pointer' }}
-              >
-                {annotation.text || 'Click to edit'}
+              <div>
+                {annotation.text || 'Double-click to edit'}
               </div>
             )}
           </div>
