@@ -281,43 +281,82 @@ export const AnnotationOverlay = () => {
             }}
           >
             {annotation.isEditing ? (
-              <textarea
-                autoFocus
-                value={annotation.text}
-                onChange={(e) => {
-                  setAnnotations(annotations.map(ann =>
-                    ann.id === annotation.id ? { ...ann, text: e.target.value } : ann
-                  ));
-                }}
-                onBlur={(e) => handleTextChange(annotation.id, e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleTextChange(annotation.id, e.currentTarget.value);
+              <div style={{ position: 'relative' }}>
+                <textarea
+                  autoFocus
+                  value={annotation.text}
+                  onChange={(e) => {
                     setAnnotations(annotations.map(ann =>
-                      ann.id === annotation.id ? { ...ann, isEditing: false } : ann
+                      ann.id === annotation.id ? { ...ann, text: e.target.value } : ann
                     ));
-                  } else if (e.key === 'Tab') {
+                  }}
+                  onBlur={(e) => {
+                    // Only handle blur if we're not clicking the delete button
+                    if (!e.relatedTarget?.matches('button')) {
+                      handleTextChange(annotation.id, e.target.value);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleTextChange(annotation.id, e.currentTarget.value);
+                      setAnnotations(annotations.map(ann =>
+                        ann.id === annotation.id ? { ...ann, isEditing: false } : ann
+                      ));
+                    } else if (e.key === 'Tab') {
+                      e.preventDefault();
+                      const start = e.currentTarget.selectionStart;
+                      const end = e.currentTarget.selectionEnd;
+                      const newValue = annotation.text.substring(0, start) + '\t' + annotation.text.substring(end);
+                      setAnnotations(annotations.map(ann =>
+                        ann.id === annotation.id ? { ...ann, text: newValue } : ann
+                      ));
+                      // Move cursor after the tab
+                      setTimeout(() => {
+                        e.currentTarget.selectionStart = e.currentTarget.selectionEnd = start + 1;
+                      }, 0);
+                    }
+                  }}
+                  style={{
+                    width: '200px',
+                    minHeight: '60px',
+                    border: 'none',
+                    resize: 'both',
+                    paddingRight: '24px', // Make room for the delete button
+                  }}
+                />
+                <button
+                  onClick={(e) => {
                     e.preventDefault();
-                    const start = e.currentTarget.selectionStart;
-                    const end = e.currentTarget.selectionEnd;
-                    const newValue = annotation.text.substring(0, start) + '\t' + annotation.text.substring(end);
-                    setAnnotations(annotations.map(ann =>
-                      ann.id === annotation.id ? { ...ann, text: newValue } : ann
-                    ));
-                    // Move cursor after the tab
-                    setTimeout(() => {
-                      e.currentTarget.selectionStart = e.currentTarget.selectionEnd = start + 1;
-                    }, 0);
-                  }
-                }}
-                style={{
-                  width: '200px',
-                  minHeight: '60px',
-                  border: 'none',
-                  resize: 'both',
-                }}
-              />
+                    e.stopPropagation();
+                    setAnnotations(annotations.filter(ann => ann.id !== annotation.id));
+                  }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '4px',
+                    right: '4px',
+                    width: '20px',
+                    height: '20px',
+                    padding: '0',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#000',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '16px',
+                    lineHeight: '1',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  ×
+                </button>
+              </div>
             ) : (
               <div>
                 {annotation.text || 'Double-click to edit'}
