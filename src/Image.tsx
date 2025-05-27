@@ -113,7 +113,7 @@ import {
   };
   
   const imageUploadBlockImplementation: ReactCustomBlockImplementation<
-    typeof imageUploadBlockSpec
+    typeof imageUploadBlockSpec, any, any
   > = {
     render: (props) => <ImageUploadCanvas {...props} />,
   };

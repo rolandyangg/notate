@@ -27,7 +27,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
 
   
     const [isSpaceHeld, setIsSpaceHeld] = useState(false);
-    const [size, setSize] = useState({ width: 400, height: 200 });
+    const [size, setSize] = useState({ width: 800, height: 400 });
     const [brushColor, setBrushColor] = useState("#333");
     const [brushSize, setBrushSize] = useState(2);
     const [tool, setTool] = useState("pen");
@@ -165,9 +165,10 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
         if (e.code === "Space") {
           e.preventDefault();
           setIsSpaceHeld(false);
-          if ((tool === "line" || tool === "rect" || tool === "ellipse") && isDrawing.current) {
-            stopDrawing();
-          }
+          // if ((tool === "line" || tool === "rect" || tool === "ellipse") && isDrawing.current) {
+          //   stopDrawing();
+          // }
+          stopDrawing(); 
         }
       };
   
@@ -299,13 +300,20 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       const rect = canvasRef.current!.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      if ((isMouseDown.current || isSpaceHeld) && !isDrawing.current) {
+
+      // ✅ Only start a stroke when spacebar is currently held or mouse is down
+      const shouldStartStroke = (isSpaceHeld || isMouseDown.current) && !isDrawing.current;
+
+      if (shouldStartStroke) {
         startDrawing(x, y);
+        return;
       }
-      if (isMouseDown.current || isSpaceHeld) {
+
+      if (isDrawing.current) {
         draw(x, y);
       }
     };
+
   
     const handleMouseUp = () => {
       isMouseDown.current = false;
@@ -521,7 +529,7 @@ onBlur={() => setIsCanvasFocused(false)}
   );
 };
 
-const drawingBlockImplementation: ReactCustomBlockImplementation<typeof drawingBlockSpec> = {
+const drawingBlockImplementation: ReactCustomBlockImplementation<typeof drawingBlockSpec, any, any> = {
   render: () => <DrawingCanvas />,
 };
 

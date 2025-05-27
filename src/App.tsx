@@ -22,7 +22,7 @@ const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
   title: "Insert Drawing Block",
   onItemClick: () =>
     insertOrUpdateBlock(editor, {
-      type: "drawing", // ✅ this is the key change!
+      type: "drawing" as any, // ✅ this is the key change!
       props: {},
     }),
   aliases: ["drawing", "sketch", "paint"],
@@ -35,7 +35,7 @@ const insertImageBlockItem = (editor: BlockNoteEditor) => ({
   title: "Insert Image Block",
   onItemClick: () =>
     insertOrUpdateBlock(editor, {
-      type: "imageUpload", // ✅ this is the key change!
+      type: "imageUpload" as any, // ✅ this is the key change!
       props: {},
     }),
   aliases: ["image"],
@@ -88,7 +88,7 @@ function App() {
         <SuggestionMenuController
           triggerCharacter={"/"}
           getItems={async (query) =>
-            filterSuggestionItems(getCustomSlashMenuItems(editor), query)
+            filterSuggestionItems(getCustomSlashMenuItems(editor as any), query)
           }
         />
       </BlockNoteView>
