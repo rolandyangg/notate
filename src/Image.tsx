@@ -15,7 +15,7 @@ import {
   
   const ImageUploadCanvas = ({ block, editor }: any) => {
     const inputRef = useRef<HTMLInputElement>(null);
-    const [isHovered, setIsHovered] = useState(false);
+    // const [isHovered, setIsHovered] = useState(false);
   
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -52,8 +52,8 @@ import {
       ) : (
 <div
   contentEditable={false}
-  onMouseEnter={() => setIsHovered(true)}
-  onMouseLeave={() => setIsHovered(false)}
+  // onMouseEnter={() => setIsHovered(true)}
+  // onMouseLeave={() => setIsHovered(false)}
   style={{
     fontFamily: "'Inter', sans-serif",
     position: "relative",
