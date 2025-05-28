@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import type { BlockNoteEditor as BlockNoteEditorType } from "@blocknote/core";
 
 interface Annotation {
   id: string;
@@ -6,6 +7,7 @@ interface Annotation {
   textBox: { x: number; y: number };
   text: string;
   isEditing: boolean;
+  blockId?: string;  // ID of the block this annotation is attached to
 }
 
 interface DragState {
@@ -15,13 +17,108 @@ interface DragState {
   startY: number;
 }
 
-export const AnnotationOverlay = () => {
+interface BlockPosition {
+  index: number;
+  top: number;
+  height: number;
+  blockId: string | null;
+}
+
+interface AnnotationOverlayProps {
+  editor: BlockNoteEditorType;
+}
+
+export const AnnotationOverlay = ({ editor }: AnnotationOverlayProps) => {
   const [isAnnotationMode, setIsAnnotationMode] = useState(false);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const annotationsRef = useRef<Annotation[]>([]);
   const [currentAnnotation, setCurrentAnnotation] = useState<Partial<Annotation> | null>(null);
   const [step, setStep] = useState<'idle' | 'selecting-point' | 'placing-textbox'>('idle');
   const [dragState, setDragState] = useState<DragState | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const blockPositionsRef = useRef<BlockPosition[]>([]);
+
+  // Update ref when annotations change
+  useEffect(() => {
+    annotationsRef.current = annotations;
+  }, [annotations]);
+
+  // Track block positions
+  useEffect(() => {
+    const updateBlockPositions = () => {
+      const editorElement = document.querySelector('.blocknote-editor');
+      if (!editorElement) return;
+
+      const editorRect = editorElement.getBoundingClientRect();
+      const blockElements = editorElement.querySelectorAll('.bn-block');
+      const blocks = editor.document;
+
+      const newPositions: BlockPosition[] = Array.from(blockElements).map((element, index) => {
+        const rect = element.getBoundingClientRect();
+        const blockId = blocks[index]?.id;
+        
+        return {
+          index,
+          top: rect.top - editorRect.top,
+          height: rect.height,
+          blockId
+        };
+      });
+
+      // Update annotations if block positions have changed
+      if (blockPositionsRef.current.length > 0) {
+        const updatedAnnotations = annotationsRef.current.map(annotation => {
+          if (!annotation.blockId) return annotation;
+
+          const oldPosition = blockPositionsRef.current.find(pos => pos.blockId === annotation.blockId);
+          const newPosition = newPositions.find(pos => pos.blockId === annotation.blockId);
+          
+          if (!oldPosition || !newPosition) return annotation;
+
+          const yOffset = newPosition.top - oldPosition.top;
+          
+          if (yOffset !== 0) {
+            return {
+              ...annotation,
+              startPoint: {
+                ...annotation.startPoint,
+                y: annotation.startPoint.y + yOffset
+              },
+              textBox: {
+                ...annotation.textBox,
+                y: annotation.textBox.y + yOffset
+              }
+            };
+          }
+          return annotation;
+        });
+
+        setAnnotations(updatedAnnotations);
+      }
+
+      blockPositionsRef.current = newPositions;
+    };
+
+    // Subscribe to BlockNote editor events
+    editor.onEditorContentChange(() => {
+      requestAnimationFrame(updateBlockPositions);
+    });
+
+    // Update positions on scroll and resize
+    const handleScroll = () => requestAnimationFrame(updateBlockPositions);
+    const handleResize = () => requestAnimationFrame(updateBlockPositions);
+
+    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleResize);
+
+    // Initial position update
+    updateBlockPositions();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [editor]);
 
   // Handle mouse move for dragging
   const handleMouseMove = (e: MouseEvent) => {
@@ -82,14 +179,38 @@ export const AnnotationOverlay = () => {
     if (!isAnnotationMode) return;
 
     if (step === 'selecting-point') {
-      // First click - set the arrow point
-      setCurrentAnnotation({
-        id: `annotation-${Date.now()}`,
-        startPoint: { x: e.clientX, y: e.clientY },
-      });
-      setStep('placing-textbox');
+      const blocks = editor.document;
+      let clickedBlock = null;
+      
+      const editorElement = document.querySelector('.blocknote-editor');
+      if (editorElement) {
+        const blockElements = editorElement.querySelectorAll('.bn-block');
+
+        for (const blockElement of blockElements) {
+          const rect = blockElement.getBoundingClientRect();
+          
+          if (
+            e.clientX >= rect.left &&
+            e.clientX <= rect.right &&
+            e.clientY >= rect.top &&
+            e.clientY <= rect.bottom
+          ) {
+            const blockIndex = Array.from(blockElements).indexOf(blockElement);
+            if (blockIndex !== -1 && blocks[blockIndex]) {
+              clickedBlock = blocks[blockIndex];
+              break;
+            }
+          }
+        }
+
+        setCurrentAnnotation({
+          id: `annotation-${Date.now()}`,
+          startPoint: { x: e.clientX, y: e.clientY },
+          blockId: clickedBlock?.id
+        });
+        setStep('placing-textbox');
+      }
     } else if (step === 'placing-textbox') {
-      // Second click - place the textbox
       if (currentAnnotation) {
         const newAnnotation: Annotation = {
           ...currentAnnotation as Annotation,
@@ -97,7 +218,7 @@ export const AnnotationOverlay = () => {
           text: '',
           isEditing: true,
         };
-        setAnnotations([...annotations, newAnnotation]);
+        setAnnotations(prevAnnotations => [...prevAnnotations, newAnnotation]);
         setCurrentAnnotation(null);
         setStep('idle');
         setIsAnnotationMode(false);

@@ -84,7 +84,7 @@ function App() {
           }
         />
       </BlockNoteView>
-      <AnnotationOverlay />
+      <AnnotationOverlay editor={editor} />
     </div>
   );
 }
