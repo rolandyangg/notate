@@ -298,7 +298,7 @@ export const AnnotationOverlay = ({ editor }: AnnotationOverlayProps) => {
     <>
       {/* Annotation Button */}
       <button
-        onClick={startAnnotation}
+        onClick={isAnnotationMode ? cancelAnnotation : startAnnotation}
         style={{
           position: 'fixed',
           top: '20px',
