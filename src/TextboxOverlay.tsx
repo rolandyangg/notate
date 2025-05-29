@@ -18,7 +18,6 @@ interface TextboxOverlayProps {
 }
 
 export const TextboxOverlay = ({
-  editor,
   textboxes,
   setTextboxes,
   isTextboxMode,
