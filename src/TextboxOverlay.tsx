@@ -166,11 +166,10 @@ export const TextboxOverlay = ({
             position: 'absolute',
             left: textbox.x,
             top: textbox.y,
-            backgroundColor: 'white',
-            border: '1px solid #ccc',
+            backgroundColor: '#dddddd',
+            border: 'none',
             borderRadius: '4px',
             padding: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
             zIndex: 1000,
             cursor: 'move',
           }}
@@ -205,6 +204,8 @@ export const TextboxOverlay = ({
                   border: 'none',
                   resize: 'both',
                   paddingRight: '24px',
+                  backgroundColor: '#dddddd',
+                  outline: 'none',
                 }}
               />
               <button

@@ -398,11 +398,10 @@ export const AnnotationOverlay = ({
               position: 'absolute',
               left: annotation.textBox.x,
               top: annotation.textBox.y,
-              backgroundColor: 'white',
-              border: '1px solid #ccc',
+              backgroundColor: '#dddddd',
+              border: 'none',
               borderRadius: '4px',
               padding: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
               zIndex: 1000,
               cursor: 'move',
             }}
@@ -450,6 +449,8 @@ export const AnnotationOverlay = ({
                     border: 'none',
                     resize: 'both',
                     paddingRight: '24px', // Make room for the delete button
+                    backgroundColor: '#dddddd',
+                    outline: 'none',
                   }}
                 />
                 <button
