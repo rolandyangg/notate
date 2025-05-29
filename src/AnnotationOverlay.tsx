@@ -46,6 +46,22 @@ export const AnnotationOverlay = ({
   const overlayRef = useRef<HTMLDivElement>(null);
   const blockPositionsRef = useRef<BlockPosition[]>([]);
 
+  // Add keyboard event listener for shift+c
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if shift+c is pressed
+      if (e.shiftKey && e.code === 'KeyC') {
+        e.preventDefault(); // Prevent default browser behavior
+        setIsAnnotationMode(prev => !prev);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []); // Empty dependency array since we don't need to recreate the listener
+
   // Update ref when annotations change
   useEffect(() => {
     annotationsRef.current = annotations;
