@@ -56,19 +56,17 @@ export const AnnotationOverlay = ({
         setIsAnnotationMode(prev => !prev);
       }
       // Check if escape is pressed and we're in annotation mode
-      if (e.key === 'Escape' || e.code === 'Escape') {
-        console.log('Escape detected');
+      if ((e.key === 'Escape' || e.code === 'Escape') && isAnnotationMode) {
         e.preventDefault();
         setIsAnnotationMode(false);
       }
     };
 
-    // Add the event listener to the window instead of document
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [isAnnotationMode]);
 
   // Update ref when annotations change
   useEffect(() => {

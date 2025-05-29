@@ -30,12 +30,12 @@ export const TextboxOverlay = ({
   // KeyBindings
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if shift+c is pressed
+      // Check if shift+t is pressed
       if (e.shiftKey && e.code === 'KeyT') {
         e.preventDefault(); // Prevent default browser behavior
         setIsTextboxMode(prev => !prev);
       }
-      if (e.key === 'Escape' || e.code === 'Escape') {
+      if ((e.key === 'Escape' || e.code === 'Escape') && isTextboxMode) {
         e.preventDefault();
         setIsTextboxMode(false);
       }
@@ -45,7 +45,7 @@ export const TextboxOverlay = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [isTextboxMode, setIsTextboxMode]);
 
   // Handle mouse move for dragging
   const handleMouseMove = (e: MouseEvent) => {

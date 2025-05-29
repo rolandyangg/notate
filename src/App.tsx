@@ -80,11 +80,34 @@ function App() {
     ]
   });
   const [annotations, setAnnotations] = useState<any[]>([]);
-  const [isAnnotationMode, setIsAnnotationMode] = useState(false);
   const [textboxes, setTextboxes] = useState<any[]>([]);
-  const [isTextboxMode, setIsTextboxMode] = useState(false);
+  const [mode, setMode] = useState<'comment-mode' | 'textbox-mode' | 'no-annotation-mode'>('no-annotation-mode');
   const [showTutorial, setShowTutorial] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Wrapper functions to maintain compatibility with existing components
+  const setIsAnnotationMode = (value: boolean | ((prev: boolean) => boolean)) => {
+    if (typeof value === 'function') {
+      const newValue = value(mode === 'comment-mode');
+      setMode(newValue ? 'comment-mode' : 'no-annotation-mode');
+    } else {
+      setMode(value ? 'comment-mode' : 'no-annotation-mode');
+    }
+  };
+
+  const setIsTextboxMode = (value: boolean | ((prev: boolean) => boolean)) => {
+    if (typeof value === 'function') {
+      const newValue = value(mode === 'textbox-mode');
+      setMode(newValue ? 'textbox-mode' : 'no-annotation-mode');
+    } else {
+      setMode(value ? 'textbox-mode' : 'no-annotation-mode');
+    }
+  };
+
+  // Helper function to check if a mode is active
+  const isModeActive = (modeToCheck: 'comment-mode' | 'textbox-mode') => {
+    return mode === modeToCheck;
+  };
 
   const handleExport = () => {
     // Get all drawing blocks and their canvas data
@@ -229,30 +252,30 @@ function App() {
           Import Notes
         </button>
         <button
-          onClick={() => setIsAnnotationMode(!isAnnotationMode)}
+          onClick={() => setIsAnnotationMode(!isModeActive('comment-mode'))}
           style={{
             padding: '8px 16px',
-            backgroundColor: isAnnotationMode ? '#ff4444' : '#4CAF50',
+            backgroundColor: isModeActive('comment-mode') ? '#ff4444' : '#4CAF50',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
             cursor: 'pointer',
           }}
         >
-          {isAnnotationMode ? 'Cancel Annotation' : 'Add Annotation'}
+          {isModeActive('comment-mode') ? 'Cancel Annotation' : 'Add Annotation'}
         </button>
         <button
-          onClick={() => setIsTextboxMode(!isTextboxMode)}
+          onClick={() => setIsTextboxMode(!isModeActive('textbox-mode'))}
           style={{
             padding: '8px 16px',
-            backgroundColor: isTextboxMode ? '#ff4444' : '#4CAF50',
+            backgroundColor: isModeActive('textbox-mode') ? '#ff4444' : '#4CAF50',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
             cursor: 'pointer',
           }}
         >
-          {isTextboxMode ? 'Cancel Textbox' : 'Add Textbox'}
+          {isModeActive('textbox-mode') ? 'Cancel Textbox' : 'Add Textbox'}
         </button>
         <input
           ref={fileInputRef}
@@ -283,14 +306,14 @@ function App() {
         editor={editor} 
         annotations={annotations} 
         setAnnotations={setAnnotations}
-        isAnnotationMode={isAnnotationMode}
+        isAnnotationMode={isModeActive('comment-mode')}
         setIsAnnotationMode={setIsAnnotationMode}
       />
       <TextboxOverlay
         editor={editor}
         textboxes={textboxes}
         setTextboxes={setTextboxes}
-        isTextboxMode={isTextboxMode}
+        isTextboxMode={isModeActive('textbox-mode')}
         setIsTextboxMode={setIsTextboxMode}
       />
     </div>
