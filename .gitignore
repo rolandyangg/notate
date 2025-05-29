@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+// Temporarily ignore because it's not working right now
+SketchOverlay.tsx

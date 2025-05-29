@@ -59,12 +59,7 @@ export const AnnotationOverlay = ({
       if (e.key === 'Escape' || e.code === 'Escape') {
         console.log('Escape detected');
         e.preventDefault();
-        setIsAnnotationMode(prev => {
-          if (prev) {
-            return false;
-          }
-          return prev;
-        });
+        setIsAnnotationMode(false);
       }
     };
 

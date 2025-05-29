@@ -20,6 +20,7 @@ import { Image } from "./Image";
 import { AnnotationOverlay } from "./AnnotationOverlay";
 import { Tutorial } from "./Tutorial";
 import { useState, useRef } from "react";
+import { TextboxOverlay } from "./TextboxOverlay";
 
 // Custom "Drawing Block" menu item
 const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
@@ -80,6 +81,8 @@ function App() {
   });
   const [annotations, setAnnotations] = useState<any[]>([]);
   const [isAnnotationMode, setIsAnnotationMode] = useState(false);
+  const [textboxes, setTextboxes] = useState<any[]>([]);
+  const [isTextboxMode, setIsTextboxMode] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -238,6 +241,19 @@ function App() {
         >
           {isAnnotationMode ? 'Cancel Annotation' : 'Add Annotation'}
         </button>
+        <button
+          onClick={() => setIsTextboxMode(!isTextboxMode)}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: isTextboxMode ? '#ff4444' : '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          {isTextboxMode ? 'Cancel Textbox' : 'Add Textbox'}
+        </button>
         <input
           ref={fileInputRef}
           type="file"
@@ -269,6 +285,13 @@ function App() {
         setAnnotations={setAnnotations}
         isAnnotationMode={isAnnotationMode}
         setIsAnnotationMode={setIsAnnotationMode}
+      />
+      <TextboxOverlay
+        editor={editor}
+        textboxes={textboxes}
+        setTextboxes={setTextboxes}
+        isTextboxMode={isTextboxMode}
+        setIsTextboxMode={setIsTextboxMode}
       />
     </div>
   );
