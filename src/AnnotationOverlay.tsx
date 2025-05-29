@@ -26,11 +26,19 @@ interface BlockPosition {
 
 interface AnnotationOverlayProps {
   editor: BlockNoteEditorType;
+  annotations: Annotation[];
+  setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
+  isAnnotationMode: boolean;
+  setIsAnnotationMode: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export const AnnotationOverlay = ({ editor }: AnnotationOverlayProps) => {
-  const [isAnnotationMode, setIsAnnotationMode] = useState(false);
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+export const AnnotationOverlay = ({ 
+  editor, 
+  annotations, 
+  setAnnotations,
+  isAnnotationMode,
+  setIsAnnotationMode
+}: AnnotationOverlayProps) => {
   const annotationsRef = useRef<Annotation[]>([]);
   const [currentAnnotation, setCurrentAnnotation] = useState<Partial<Annotation> | null>(null);
   const [step, setStep] = useState<'idle' | 'selecting-point' | 'placing-textbox'>('idle');
@@ -178,6 +186,11 @@ export const AnnotationOverlay = ({ editor }: AnnotationOverlayProps) => {
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (!isAnnotationMode) return;
 
+    if (step === 'idle') {
+      setStep('selecting-point');
+      return;
+    }
+
     if (step === 'selecting-point') {
       const blocks = editor.document;
       let clickedBlock = null;
@@ -246,6 +259,16 @@ export const AnnotationOverlay = ({ editor }: AnnotationOverlayProps) => {
     setCurrentAnnotation(null);
   };
 
+  // Effect to handle annotation mode changes
+  useEffect(() => {
+    if (isAnnotationMode) {
+      setStep('selecting-point');
+    } else {
+      setStep('idle');
+      setCurrentAnnotation(null);
+    }
+  }, [isAnnotationMode]);
+
   // Draw arrow between points
   const drawArrow = (start: { x: number; y: number }, end: { x: number; y: number }, id: string) => {
     const dx = end.x - start.x;
@@ -296,25 +319,6 @@ export const AnnotationOverlay = ({ editor }: AnnotationOverlayProps) => {
 
   return (
     <>
-      {/* Annotation Button */}
-      <button
-        onClick={isAnnotationMode ? cancelAnnotation : startAnnotation}
-        style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          zIndex: 1000,
-          padding: '8px 16px',
-          backgroundColor: isAnnotationMode ? '#ff4444' : '#4CAF50',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: 'pointer',
-        }}
-      >
-        {isAnnotationMode ? 'Cancel Annotation' : 'Add Annotation'}
-      </button>
-
       {/* Overlay for annotation placement */}
       {isAnnotationMode && (
         <div
