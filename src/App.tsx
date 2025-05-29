@@ -17,14 +17,15 @@ import { HiPencilAlt, HiPhotograph } from "react-icons/hi"; // drawing icon
 import { Drawing } from "./Drawing.tsx"
 import { Image } from "./Image";
 import { AnnotationOverlay } from "./AnnotationOverlay";
-import { useState, useRef } from "react";
+import { Tutorial } from "./Tutorial";
+import { useState, useRef, useEffect } from "react";
 
 // Custom "Drawing Block" menu item
 const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
   title: "Insert Drawing Block",
   onItemClick: () =>
     insertOrUpdateBlock(editor, {
-      type: "drawing" as any, // ✅ this is the key change!
+      type: "drawing" as const,
       props: {},
     }),
   aliases: ["drawing", "sketch", "paint"],
@@ -47,14 +48,10 @@ const insertImageBlockItem = (editor: BlockNoteEditor) => ({
 });
 
 // List containing all default Slash Menu Items, as well as our custom one.
-const getCustomSlashMenuItems = (
-  editor: BlockNoteEditor,
-): any[] => [
+const getCustomSlashMenuItems = (editor: BlockNoteEditor) => [
+  ...getDefaultReactSlashMenuItems(editor),
   insertDrawingBlockItem(editor),
   insertImageBlockItem(editor),
-  ...getDefaultReactSlashMenuItems(editor).filter(item =>
-    !["Image", "Video", "Audio", "File", "Emoji"].includes(item.title)
-  )
 ];
 
 const schema = BlockNoteSchema.create({
@@ -66,11 +63,10 @@ const schema = BlockNoteSchema.create({
 });
 
 function App() {
-  const editor = useCreateBlockNote({
-    schema,
-  });
+  const editor = useCreateBlockNote({ schema });
   const [annotations, setAnnotations] = useState<any[]>([]);
   const [isAnnotationMode, setIsAnnotationMode] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
@@ -164,6 +160,9 @@ function App() {
 
   return (
     <div className="blocknote-container">
+      {showTutorial && (
+        <Tutorial onDismiss={() => setShowTutorial(false)} />
+      )}
       <div style={{ 
         position: 'fixed', 
         top: '20px', 
@@ -173,6 +172,19 @@ function App() {
         flexDirection: 'column',
         gap: '10px'
       }}>
+        <button
+          onClick={() => setShowTutorial(true)}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#9C27B0',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          Show Tutorial
+        </button>
         <button
           onClick={handleExport}
           style={{
