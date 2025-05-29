@@ -64,7 +64,20 @@ const schema = BlockNoteSchema.create({
 });
 
 function App() {
-  const editor = useCreateBlockNote({ schema });
+  const editor = useCreateBlockNote({ 
+    schema,
+    initialContent: [
+      {
+        type: "heading",
+        content: "[Document Title]",
+        props: { level: 1 }
+      },
+      {
+        type: "paragraph",
+        content: "Your notes here."
+      }
+    ]
+  });
   const [annotations, setAnnotations] = useState<any[]>([]);
   const [isAnnotationMode, setIsAnnotationMode] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
@@ -238,6 +251,10 @@ function App() {
         theme="light"
         className="blocknote-editor"
         slashMenu={false}
+        style={{
+          margin: '60px 40px 40px 40px', // top, right, bottom, left
+          maxWidth: 'calc(100% - 80px)', // Account for left and right margins
+        }}
       >
         <SuggestionMenuController
           triggerCharacter={"/"}
