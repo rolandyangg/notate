@@ -41,12 +41,13 @@ export const AnnotationOverlay = ({
 }: AnnotationOverlayProps) => {
   const annotationsRef = useRef<Annotation[]>([]);
   const [currentAnnotation, setCurrentAnnotation] = useState<Partial<Annotation> | null>(null);
-  const [step, setStep] = useState<'idle' | 'selecting-point' | 'placing-textbox'>('idle');
+  const [step, setStep] = useState<'selecting-point' | 'placing-textbox'>('selecting-point');
   const [dragState, setDragState] = useState<DragState | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const blockPositionsRef = useRef<BlockPosition[]>([]);
 
-  // Add keyboard event listener for shift+c
+  // Add keyboard event listener for shift+c to start/stop annotation mode
+  // Adds event listener when page mounts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if shift+c is pressed
@@ -60,7 +61,7 @@ export const AnnotationOverlay = ({
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, []); // Empty dependency array since we don't need to recreate the listener
+  }, []);
 
   // Update ref when annotations change
   useEffect(() => {
@@ -202,11 +203,6 @@ export const AnnotationOverlay = ({
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (!isAnnotationMode) return;
 
-    if (step === 'idle') {
-      setStep('selecting-point');
-      return;
-    }
-
     if (step === 'selecting-point') {
       const blocks = editor.document;
       let clickedBlock = null;
@@ -249,8 +245,7 @@ export const AnnotationOverlay = ({
         };
         setAnnotations(prevAnnotations => [...prevAnnotations, newAnnotation]);
         setCurrentAnnotation(null);
-        setStep('idle');
-        setIsAnnotationMode(false);
+        setStep('selecting-point'); // Go directly to selecting-point for next annotation
       }
     }
   };
@@ -267,7 +262,6 @@ export const AnnotationOverlay = ({
     if (isAnnotationMode) {
       setStep('selecting-point');
     } else {
-      setStep('idle');
       setCurrentAnnotation(null);
     }
   }, [isAnnotationMode]);
