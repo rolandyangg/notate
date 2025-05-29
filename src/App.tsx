@@ -20,6 +20,8 @@ import { Image } from "./Image";
 import { AnnotationOverlay } from "./AnnotationOverlay";
 import { Tutorial } from "./Tutorial";
 import { useState, useRef } from "react";
+import { TextboxOverlay } from "./TextboxOverlay";
+import { OverlayToolbar } from "./OverlayToolbar";
 
 // Custom "Drawing Block" menu item
 const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
@@ -79,9 +81,34 @@ function App() {
     ]
   });
   const [annotations, setAnnotations] = useState<any[]>([]);
-  const [isAnnotationMode, setIsAnnotationMode] = useState(false);
+  const [textboxes, setTextboxes] = useState<any[]>([]);
+  const [mode, setMode] = useState<'comment-mode' | 'textbox-mode' | 'no-annotation-mode'>('no-annotation-mode');
   const [showTutorial, setShowTutorial] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Wrapper functions to maintain compatibility with existing components
+  const setIsAnnotationMode = (value: boolean | ((prev: boolean) => boolean)) => {
+    if (typeof value === 'function') {
+      const newValue = value(mode === 'comment-mode');
+      setMode(newValue ? 'comment-mode' : 'no-annotation-mode');
+    } else {
+      setMode(value ? 'comment-mode' : 'no-annotation-mode');
+    }
+  };
+
+  const setIsTextboxMode = (value: boolean | ((prev: boolean) => boolean)) => {
+    if (typeof value === 'function') {
+      const newValue = value(mode === 'textbox-mode');
+      setMode(newValue ? 'textbox-mode' : 'no-annotation-mode');
+    } else {
+      setMode(value ? 'textbox-mode' : 'no-annotation-mode');
+    }
+  };
+
+  // Helper function to check if a mode is active
+  const isModeActive = (modeToCheck: 'comment-mode' | 'textbox-mode') => {
+    return mode === modeToCheck;
+  };
 
   const handleExport = () => {
     // Get all drawing blocks and their canvas data
@@ -174,12 +201,13 @@ function App() {
 
   return (
     <div className="blocknote-container">
+      <OverlayToolbar mode={mode} setMode={setMode} />
       {showTutorial && (
         <Tutorial onDismiss={() => setShowTutorial(false)} />
       )}
       <div style={{ 
         position: 'fixed', 
-        top: '20px', 
+        bottom: '20px', 
         right: '20px', 
         zIndex: 1000,
         display: 'flex',
@@ -225,19 +253,6 @@ function App() {
         >
           Import Notes
         </button>
-        <button
-          onClick={() => setIsAnnotationMode(!isAnnotationMode)}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: isAnnotationMode ? '#ff4444' : '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}
-        >
-          {isAnnotationMode ? 'Cancel Annotation' : 'Add Annotation'}
-        </button>
         <input
           ref={fileInputRef}
           type="file"
@@ -267,8 +282,15 @@ function App() {
         editor={editor} 
         annotations={annotations} 
         setAnnotations={setAnnotations}
-        isAnnotationMode={isAnnotationMode}
+        isAnnotationMode={isModeActive('comment-mode')}
         setIsAnnotationMode={setIsAnnotationMode}
+      />
+      <TextboxOverlay
+        editor={editor}
+        textboxes={textboxes}
+        setTextboxes={setTextboxes}
+        isTextboxMode={isModeActive('textbox-mode')}
+        setIsTextboxMode={setIsTextboxMode}
       />
     </div>
   );
