@@ -55,11 +55,23 @@ export const AnnotationOverlay = ({
         e.preventDefault(); // Prevent default browser behavior
         setIsAnnotationMode(prev => !prev);
       }
+      // Check if escape is pressed and we're in annotation mode
+      if (e.key === 'Escape' || e.code === 'Escape') {
+        console.log('Escape detected');
+        e.preventDefault();
+        setIsAnnotationMode(prev => {
+          if (prev) {
+            return false;
+          }
+          return prev;
+        });
+      }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    // Add the event listener to the window instead of document
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
