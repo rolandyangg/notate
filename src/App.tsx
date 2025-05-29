@@ -17,6 +17,7 @@ import { HiPencilAlt, HiPhotograph } from "react-icons/hi"; // drawing icon
 import { Drawing } from "./Drawing.tsx"
 import { Image } from "./Image";
 import { AnnotationOverlay } from "./AnnotationOverlay";
+import { useState, useRef } from "react";
 
 // Custom "Drawing Block" menu item
 const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
@@ -68,9 +69,157 @@ function App() {
   const editor = useCreateBlockNote({
     schema,
   });
+  const [annotations, setAnnotations] = useState<any[]>([]);
+  const [isAnnotationMode, setIsAnnotationMode] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = () => {
+    // Get all drawing blocks and their canvas data
+    const drawingBlocks = editor.document.filter(block => block.type === 'drawing');
+    const drawingData = drawingBlocks.map(block => {
+      // Find the canvas element within the block's container
+      const blockElement = document.querySelector(`[data-block-id="${block.id}"]`);
+      const canvas = blockElement?.querySelector('canvas') as HTMLCanvasElement;
+      if (!canvas) return null;
+
+      // Ensure the canvas is properly initialized
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+
+      // Get the raw pixel data
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      return {
+        blockId: block.id,
+        width: canvas.width,
+        height: canvas.height,
+        pixelData: Array.from(imageData.data)
+      };
+    }).filter(Boolean);
+
+    const data = {
+      blocks: editor.document,
+      annotations: annotations,
+      drawingData: drawingData
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'notes.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        if (data.blocks) {
+          editor.replaceBlocks(editor.document, data.blocks);
+          
+          // Restore drawing data after a short delay to ensure blocks are rendered
+          if (data.drawingData) {
+            setTimeout(() => {
+              data.drawingData.forEach((drawing: { blockId: string; width: number; height: number; pixelData: number[] }) => {
+                const blockElement = document.querySelector(`[data-block-id="${drawing.blockId}"]`);
+                const canvas = blockElement?.querySelector('canvas') as HTMLCanvasElement;
+                if (canvas) {
+                  // Set canvas dimensions
+                  canvas.width = drawing.width;
+                  canvas.height = drawing.height;
+                  
+                  const ctx = canvas.getContext('2d');
+                  if (!ctx) return;
+
+                  // Create ImageData from the saved pixel data
+                  const imageData = new ImageData(
+                    new Uint8ClampedArray(drawing.pixelData),
+                    drawing.width,
+                    drawing.height
+                  );
+
+                  // Put the image data back on the canvas
+                  ctx.putImageData(imageData, 0, 0);
+                }
+              });
+            }, 1000); // Increased delay to ensure blocks are fully rendered and initialized
+          }
+        }
+        if (data.annotations) {
+          setAnnotations(data.annotations);
+        }
+      } catch (error) {
+        console.error('Error importing file:', error);
+        alert('Error importing file. Please make sure it is a valid JSON file.');
+      }
+    };
+    reader.readAsText(file);
+  };
 
   return (
     <div className="blocknote-container">
+      <div style={{ 
+        position: 'fixed', 
+        top: '20px', 
+        right: '20px', 
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px'
+      }}>
+        <button
+          onClick={handleExport}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          Export Notes
+        </button>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#2196F3',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          Import Notes
+        </button>
+        <button
+          onClick={() => setIsAnnotationMode(!isAnnotationMode)}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: isAnnotationMode ? '#ff4444' : '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          {isAnnotationMode ? 'Cancel Annotation' : 'Add Annotation'}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleImport}
+          style={{ display: 'none' }}
+        />
+      </div>
       <BlockNoteView
         editor={editor}
         theme="light"
@@ -84,7 +233,13 @@ function App() {
           }
         />
       </BlockNoteView>
-      <AnnotationOverlay editor={editor} />
+      <AnnotationOverlay 
+        editor={editor} 
+        annotations={annotations} 
+        setAnnotations={setAnnotations}
+        isAnnotationMode={isAnnotationMode}
+        setIsAnnotationMode={setIsAnnotationMode}
+      />
     </div>
   );
 }
