@@ -21,6 +21,7 @@ import { AnnotationOverlay } from "./AnnotationOverlay";
 import { Tutorial } from "./Tutorial";
 import { useState, useRef } from "react";
 import { TextboxOverlay } from "./TextboxOverlay";
+import { OverlayToolbar } from "./OverlayToolbar";
 
 // Custom "Drawing Block" menu item
 const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
@@ -200,12 +201,13 @@ function App() {
 
   return (
     <div className="blocknote-container">
+      <OverlayToolbar mode={mode} setMode={setMode} />
       {showTutorial && (
         <Tutorial onDismiss={() => setShowTutorial(false)} />
       )}
       <div style={{ 
         position: 'fixed', 
-        top: '20px', 
+        bottom: '20px', 
         right: '20px', 
         zIndex: 1000,
         display: 'flex',
@@ -250,32 +252,6 @@ function App() {
           }}
         >
           Import Notes
-        </button>
-        <button
-          onClick={() => setIsAnnotationMode(!isModeActive('comment-mode'))}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: isModeActive('comment-mode') ? '#ff4444' : '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}
-        >
-          {isModeActive('comment-mode') ? 'Cancel Annotation' : 'Add Annotation'}
-        </button>
-        <button
-          onClick={() => setIsTextboxMode(!isModeActive('textbox-mode'))}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: isModeActive('textbox-mode') ? '#ff4444' : '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}
-        >
-          {isModeActive('textbox-mode') ? 'Cancel Textbox' : 'Add Textbox'}
         </button>
         <input
           ref={fileInputRef}
