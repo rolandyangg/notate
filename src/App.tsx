@@ -16,6 +16,7 @@ import {
 import { HiPencilAlt, HiPhotograph } from "react-icons/hi"; // drawing icon
 import { Drawing } from "./Drawing.tsx"
 import { Image } from "./Image";
+import { AnnotationOverlay } from "./AnnotationOverlay";
 
 // Custom "Drawing Block" menu item
 const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
@@ -66,15 +67,6 @@ const schema = BlockNoteSchema.create({
 function App() {
   const editor = useCreateBlockNote({
     schema,
-    // initialContent: [
-    //   {
-    //     type: "drawing"
-    //   },
-    //   {
-    //     type: "paragraph",
-    //     content: "Start typing below: "
-    //   }
-    // ]
   });
 
   return (
@@ -92,6 +84,7 @@ function App() {
           }
         />
       </BlockNoteView>
+      <AnnotationOverlay editor={editor} />
     </div>
   );
 }
