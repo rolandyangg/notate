@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { BlockNoteEditor as BlockNoteEditorType } from "@blocknote/core";
+import type { BlockNoteEditor } from "@blocknote/core";
 
 interface Annotation {
   id: string;
@@ -25,7 +25,7 @@ interface BlockPosition {
 }
 
 interface AnnotationOverlayProps {
-  editor: BlockNoteEditorType;
+  editor: BlockNoteEditor<any, any, any>;
   annotations: Annotation[];
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
   isAnnotationMode: boolean;
@@ -244,19 +244,6 @@ export const AnnotationOverlay = ({
     setAnnotations(annotations.map(ann => 
       ann.id === id ? { ...ann, text, isEditing: false } : ann
     ));
-  };
-
-  // Start annotation mode
-  const startAnnotation = () => {
-    setIsAnnotationMode(true);
-    setStep('selecting-point');
-  };
-
-  // Cancel annotation mode
-  const cancelAnnotation = () => {
-    setIsAnnotationMode(false);
-    setStep('idle');
-    setCurrentAnnotation(null);
   };
 
   // Effect to handle annotation mode changes

@@ -5,6 +5,7 @@ import {
   BlockNoteSchema,
   defaultBlockSpecs,
 } from "@blocknote/core";
+import type { PartialBlock } from "@blocknote/core";
 import "@blocknote/core/fonts/inter.css";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
@@ -18,16 +19,16 @@ import { Drawing } from "./Drawing.tsx"
 import { Image } from "./Image";
 import { AnnotationOverlay } from "./AnnotationOverlay";
 import { Tutorial } from "./Tutorial";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 
 // Custom "Drawing Block" menu item
 const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
   title: "Insert Drawing Block",
   onItemClick: () =>
     insertOrUpdateBlock(editor, {
-      type: "drawing" as const,
+      type: "drawing",
       props: {},
-    }),
+    } as unknown as PartialBlock),
   aliases: ["drawing", "sketch", "paint"],
   group: "Other",
   icon: <HiPencilAlt size={18} />,
@@ -38,9 +39,9 @@ const insertImageBlockItem = (editor: BlockNoteEditor) => ({
   title: "Insert Image Block",
   onItemClick: () =>
     insertOrUpdateBlock(editor, {
-      type: "imageUpload" as any, // ✅ this is the key change!
+      type: "imageUpload",
       props: {},
-    }),
+    } as unknown as PartialBlock),
   aliases: ["image"],
   group: "Other",
   icon: <HiPhotograph size={18} />,
