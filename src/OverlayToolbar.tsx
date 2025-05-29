@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import annotateIcon from './assets/annotate-icon.png';
 import commentIcon from './assets/comment-icon.png';
 import textboxIcon from './assets/textbox-icon.png';
+import commentIconWhite from './assets/comment-white.png';
+import textboxIconWhite from './assets/textbox-white.png';
 
 interface OverlayToolbarProps {
   mode: 'comment-mode' | 'textbox-mode' | 'no-annotation-mode';
@@ -61,7 +63,13 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
         }}
         aria-label="Expand annotation menu"
       >
-        <img src={annotateIcon} alt="Annotate" style={{ height: 28, objectFit: 'contain' }} />
+        {(mode === 'comment-mode' && !expanded) ? (
+          <img src={commentIconWhite} alt="Comment" style={{ height: 20, objectFit: 'contain' }} />
+        ) : (mode === 'textbox-mode' && !expanded) ? (
+          <img src={textboxIconWhite} alt="Textbox" style={{ height: 38, objectFit: 'contain' }} />
+        ) : (
+          <img src={annotateIcon} alt="Annotate" style={{ height: 28, objectFit: 'contain' }} />
+        )}
       </button>
       <div
         style={{
