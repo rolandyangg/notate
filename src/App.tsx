@@ -19,7 +19,7 @@ import { Drawing } from "./Drawing.tsx"
 import { Image } from "./Image";
 import { AnnotationOverlay } from "./AnnotationOverlay";
 import { Tutorial } from "./Tutorial";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { TextboxOverlay } from "./TextboxOverlay";
 import { OverlayToolbar } from "./OverlayToolbar";
 
@@ -86,6 +86,48 @@ function App() {
   const [mode, setMode] = useState<'comment-mode' | 'textbox-mode' | 'no-annotation-mode'>('no-annotation-mode');
   const [showTutorial, setShowTutorial] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Add clipboard paste handler
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      // Only handle paste if we're focused in the editor
+      if (!editor.getTextCursorPosition()) return;
+      
+      const items = Array.from(e.clipboardData?.items || []);
+      const imageItem = items.find(item => item.type.startsWith('image'));
+      
+      if (imageItem) {
+        e.preventDefault();
+        const blob = imageItem.getAsFile();
+        if (!blob) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            // Get the current block
+            const currentBlock = editor.getTextCursorPosition()?.block;
+            if (!currentBlock) return;
+
+            // Create and insert the image upload block
+            editor.insertBlocks(
+              [{
+                type: "imageUpload",
+                props: {
+                  src: reader.result
+                }
+              } as unknown as PartialBlock],
+              currentBlock,
+              "after"
+            );
+          }
+        };
+        reader.readAsDataURL(blob);
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [editor]);
 
   // Wrapper functions to maintain compatibility with existing components
   const setIsAnnotationMode = (value: boolean | ((prev: boolean) => boolean)) => {
