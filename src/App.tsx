@@ -52,9 +52,10 @@ const insertImageBlockItem = (editor: BlockNoteEditor) => ({
 
 // List containing all default Slash Menu Items, as well as our custom one.
 const getCustomSlashMenuItems = (editor: BlockNoteEditor) => [
-  ...getDefaultReactSlashMenuItems(editor),
   insertDrawingBlockItem(editor),
   insertImageBlockItem(editor),
+  ...getDefaultReactSlashMenuItems(editor).filter(item =>
+    !["Image", "Video", "Audio", "File", "Emoji"].includes(item.title))
 ];
 
 const schema = BlockNoteSchema.create({
