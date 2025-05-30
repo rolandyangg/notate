@@ -661,7 +661,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       }
     }, [tool]);
 
-    // Save text elements to canvas
+    // Modify the renderTextToCanvas function
     const renderTextToCanvas = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -679,6 +679,8 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       textElements.forEach(element => {
         tempCtx.font = `${element.fontSize}px Arial`;
         tempCtx.fillStyle = element.color;
+        // Adjust the text baseline to match the overlay positioning
+        tempCtx.textBaseline = 'middle';
         tempCtx.fillText(element.text, element.x, element.y);
       });
       
