@@ -28,21 +28,40 @@ export const TextboxOverlay = ({
 
   // KeyBindings
   useEffect(() => {
+    let isTabPressed = false;
+    
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if shift+t is pressed
-      if (e.shiftKey && e.code === 'KeyT') {
-        e.preventDefault(); // Prevent default browser behavior
+      // Track Tab key press
+      if (e.code === 'Tab') {
+        e.preventDefault(); // Prevent default tab behavior
+        isTabPressed = true;
+        return;
+      }
+      
+      // Check for Tab+T combination
+      if (isTabPressed && e.code === 'KeyT') {
+        e.preventDefault();
         setIsTextboxMode(prev => !prev);
       }
+      
       if ((e.key === 'Escape' || e.code === 'Escape') && isTextboxMode) {
         e.preventDefault();
         setIsTextboxMode(false);
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Tab') {
+        isTabPressed = false;
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
     };
   }, [isTextboxMode, setIsTextboxMode]);
 

@@ -46,15 +46,24 @@ export const AnnotationOverlay = ({
   const overlayRef = useRef<HTMLDivElement>(null);
   const blockPositionsRef = useRef<BlockPosition[]>([]);
 
-  // Add keyboard event listener for shift+c to start/stop annotation mode
-  // Adds event listener when page mounts
+  // Add keyboard event listener for Tab+C to start/stop annotation mode
   useEffect(() => {
+    let isTabPressed = false;
+    
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if shift+c is pressed
-      if (e.shiftKey && e.code === 'KeyC') {
-        e.preventDefault(); // Prevent default browser behavior
+      // Track Tab key press
+      if (e.code === 'Tab') {
+        e.preventDefault(); // Prevent default tab behavior
+        isTabPressed = true;
+        return;
+      }
+      
+      // Check for Tab+C combination
+      if (isTabPressed && e.code === 'KeyC') {
+        e.preventDefault();
         setIsAnnotationMode(prev => !prev);
       }
+      
       // Check if escape is pressed and we're in annotation mode
       if ((e.key === 'Escape' || e.code === 'Escape') && isAnnotationMode) {
         e.preventDefault();
@@ -62,9 +71,18 @@ export const AnnotationOverlay = ({
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Tab') {
+        isTabPressed = false;
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
     };
   }, [isAnnotationMode]);
 
