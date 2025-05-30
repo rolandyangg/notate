@@ -67,6 +67,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
     const dragStart = useRef<{x: number; y: number}>({ x: 0, y: 0 });
+    const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
 
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
@@ -754,6 +755,40 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       }
     }, [tool]);
 
+    // Update toolbar position when canvas size changes
+    useEffect(() => {
+      const updateToolbarPosition = () => {
+        if (canvasRef.current && containerRef.current) {
+          const containerRect = containerRef.current.getBoundingClientRect();
+          
+          setToolbarPosition({
+            top: containerRect.top,
+            left: containerRect.left + (containerRect.width / 2)
+          });
+        }
+      };
+
+      // Initial position
+      updateToolbarPosition();
+
+      // Update position on resize
+      const resizeObserver = new ResizeObserver(updateToolbarPosition);
+      if (containerRef.current) {
+        resizeObserver.observe(containerRef.current);
+      }
+
+      // Update position on scroll
+      const handleScroll = () => {
+        updateToolbarPosition();
+      };
+      window.addEventListener('scroll', handleScroll);
+
+      return () => {
+        resizeObserver.disconnect();
+        window.removeEventListener('scroll', handleScroll);
+      };
+    }, []);
+
   return (
     <div
       contentEditable={false}
@@ -939,10 +974,10 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
         <div
           ref={toolbarRef}
           style={{
-            position: "absolute",
-            top: 6,
-            left: "50%",
-            transform: "translateX(-50%)",
+            position: "fixed",
+            top: 0,
+            left: 0,
+            transform: `translate(calc(${toolbarPosition.left}px - 50%), calc(${toolbarPosition.top}px - 100%))`,
             display: "flex",
             flexDirection: "row",
             alignItems: "center",
@@ -950,13 +985,17 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
             backgroundColor: "#fff",
             border: "1px solid #ccc",
             borderRadius: 8,
-            boxShadow: "0px 0px 4px rgba(0, 0, 0, 0.1)",
+            boxShadow: "0px 2px 8px rgba(0, 0, 0, 0.15)",
             padding: "6px 10px",
-            zIndex: 10,
+            zIndex: 1000,
+            minWidth: "fit-content",
+            whiteSpace: "nowrap",
+            maxWidth: "max-content",
+            pointerEvents: "auto",
           }}
         >
           {/* Tool Buttons */}
-          <div style={{ display: 'flex', gap: 4, borderRight: '1px solid #ddd', paddingRight: 8 }}>
+          <div style={{ display: 'flex', gap: 4, borderRight: '1px solid #ddd', paddingRight: 8, flexShrink: 0 }}>
             <button
               onClick={() => setTool('pen')}
               style={{
@@ -972,6 +1011,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
                 justifyContent: 'center',
                 width: 32,
                 height: 32,
+                flexShrink: 0,
               }}
               title="Pen Tool"
             >
@@ -992,6 +1032,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
                 justifyContent: 'center',
                 width: 32,
                 height: 32,
+                flexShrink: 0,
               }}
               title="Line Tool"
             >
@@ -1012,6 +1053,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
                 justifyContent: 'center',
                 width: 32,
                 height: 32,
+                flexShrink: 0,
               }}
               title="Arrow Tool"
             >
@@ -1032,6 +1074,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
                 justifyContent: 'center',
                 width: 32,
                 height: 32,
+                flexShrink: 0,
               }}
               title="Rectangle Tool"
             >
@@ -1052,6 +1095,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
                 justifyContent: 'center',
                 width: 32,
                 height: 32,
+                flexShrink: 0,
               }}
               title="Circle Tool"
             >
@@ -1072,6 +1116,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
                 justifyContent: 'center',
                 width: 32,
                 height: 32,
+                flexShrink: 0,
               }}
               title="Text Tool"
             >
@@ -1080,7 +1125,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
           </div>
 
           {/* Undo/Redo Buttons */}
-          <div style={{ display: 'flex', gap: 4, borderRight: '1px solid #ddd', paddingRight: 8 }}>
+          <div style={{ display: 'flex', gap: 4, borderRight: '1px solid #ddd', paddingRight: 8, flexShrink: 0 }}>
             <button
               onClick={handleUndo}
               style={{
@@ -1096,6 +1141,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
                 justifyContent: 'center',
                 width: 32,
                 height: 32,
+                flexShrink: 0,
               }}
               title="Undo"
             >
@@ -1116,6 +1162,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
                 justifyContent: 'center',
                 width: 32,
                 height: 32,
+                flexShrink: 0,
               }}
               title="Redo"
             >
@@ -1136,6 +1183,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
                 justifyContent: 'center',
                 width: 32,
                 height: 32,
+                flexShrink: 0,
               }}
               title="Clear Canvas"
             >
@@ -1144,7 +1192,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
           </div>
 
           {/* Brush Size */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, borderRight: '1px solid #ddd', paddingRight: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, borderRight: '1px solid #ddd', paddingRight: 8, flexShrink: 0 }}>
             <input
               type="range"
               min={1}
@@ -1161,28 +1209,32 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
               style={{
                 width: 80,
                 cursor: "pointer",
+                flexShrink: 0,
               }}
             />
-            <span style={{ fontSize: 12, color: "#333", minWidth: 24 }}>
+            <span style={{ fontSize: 12, color: "#333", minWidth: 24, flexShrink: 0 }}>
               {tool === 'text' ? fontSize : brushSize}px
             </span>
           </div>
 
           {/* Color Picker */}
-          <input
-            type="color"
-            value={brushColor}
-            onChange={(e) => setBrushColor(e.target.value)}
-            style={{
-              width: 32,
-              height: 32,
-              padding: 2,
-              border: 'none',
-              borderRadius: 4,
-              cursor: "pointer",
-              background: "none",
-            }}
-          />
+          <div style={{ flexShrink: 0 }}>
+            <input
+              type="color"
+              value={brushColor}
+              onChange={(e) => setBrushColor(e.target.value)}
+              style={{
+                width: 32,
+                height: 32,
+                padding: 2,
+                border: 'none',
+                borderRadius: 4,
+                cursor: "pointer",
+                background: "none",
+                flexShrink: 0,
+              }}
+            />
+          </div>
         </div>
       )}
     </div>
