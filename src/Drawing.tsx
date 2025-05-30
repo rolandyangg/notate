@@ -4,6 +4,17 @@ import {
 } from "@blocknote/react";
 import React, { useEffect, useRef, useState } from "react";
 import rough from "roughjs/bin/rough";
+import { 
+  FaPen, 
+  FaMinus, 
+  FaLongArrowAltRight, 
+  FaSquare, 
+  FaCircle, 
+  FaFont,
+  FaUndo,
+  FaRedo,
+  FaEraser
+} from "react-icons/fa";
 
 const drawingBlockSpec = {
   type: "drawing",
@@ -924,141 +935,254 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       />
       {isHovered && (
         <div
-        ref={toolbarRef}
-        style={{
-          position: "absolute",
-          top: 6,
-          left: "50%",
-          transform: "translateX(-50%)", // Center horizontally
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 10,
-          backgroundColor: "#fff",
-          border: "1px solid #ccc",
-          borderRadius: 8,
-          boxShadow: "0px 0px 4px rgba(0, 0, 0, 0.1)",
-          padding: "6px 10px",
-          zIndex: 10, // Optional: ensure it stays above canvas
-        }}
-      >
-        {/* Undo */}
-        <button
-          onClick={handleUndo}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#e0e0e0")}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#fff")}
+          ref={toolbarRef}
           style={{
-            fontSize: 12,
+            position: "absolute",
+            top: 6,
+            left: "50%",
+            transform: "translateX(-50%)",
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
             backgroundColor: "#fff",
-            color: "#333",
-            border: "none",
-            borderRadius: 6,
-            padding: "6px 10px",
-            cursor: "pointer",
-          }}
-          title="Undo"
-        >
-          ↶
-        </button>
-      
-        {/* Redo */}
-        <button
-          onClick={handleRedo}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#e0e0e0")}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#fff")}
-          style={{
-            fontSize: 12,
-            backgroundColor: "#fff",
-            color: "#333",
-            border: "none",
-            borderRadius: 6,
-            padding: "6px 10px",
-            cursor: "pointer",
-          }}
-          title="Redo"
-        >
-          ↷
-        </button>
-      
-        {/* Clear */}
-        <button
-          onClick={handleClearCanvas}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#e0e0e0")}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#fff")}
-          style={{
-            fontSize: 12,
-            backgroundColor: "#fff",
-            color: "#333",
-            border: "none",
-            borderRadius: 6,
-            padding: "6px 10px",
-            cursor: "pointer",
-          }}
-          title="Clear Canvas"
-        >
-          🧹
-        </button>
-      
-      {/* Brush Size */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <input
-          type="range"
-          min={1}
-          max={20}
-          value={tool === 'text' ? fontSize : brushSize}
-          onChange={(e) => {
-            const value = Number(e.target.value);
-            if (tool === 'text') {
-              setFontSize(value);
-            } else {
-              setBrushSize(value);
-            }
-          }}
-          style={{
-            width: 80,
-            cursor: "pointer",
-          }}
-        />
-        <span style={{ fontSize: 12, color: "#333", minWidth: 24 }}>{tool === 'text' ? fontSize : brushSize}px</span>
-      </div>
-      
-        {/* Tool Selector */}
-        <select
-          value={tool}
-          onChange={(e) => setTool(e.target.value)}
-          style={{
-            fontSize: 12,
-            padding: "4px 6px",
-            borderRadius: 4,
             border: "1px solid #ccc",
-            backgroundColor: "#fff",
-            cursor: "pointer",
+            borderRadius: 8,
+            boxShadow: "0px 0px 4px rgba(0, 0, 0, 0.1)",
+            padding: "6px 10px",
+            zIndex: 10,
           }}
         >
-          <option value="pen">Pen</option>
-          <option value="line">Line</option>
-          <option value="arrow">Arrow</option>
-          <option value="rect">Rectangle</option>
-          <option value="ellipse">Ellipse</option>
-          <option value="text">Text</option>
-        </select>
-      
-          {/* Brush Color */}
-        <input
-          type="color"
-          value={brushColor}
-          onChange={(e) => setBrushColor(e.target.value)}
-          style={{
-            width: 24,
-            height: 24,
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-            background: "none",
-          }}
-        />
-      </div>
-    )}
+          {/* Tool Buttons */}
+          <div style={{ display: 'flex', gap: 4, borderRight: '1px solid #ddd', paddingRight: 8 }}>
+            <button
+              onClick={() => setTool('pen')}
+              style={{
+                fontSize: 16,
+                backgroundColor: tool === 'pen' ? '#e0e0e0' : '#fff',
+                color: '#333',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+              }}
+              title="Pen Tool"
+            >
+              <FaPen size={14} />
+            </button>
+            <button
+              onClick={() => setTool('line')}
+              style={{
+                fontSize: 16,
+                backgroundColor: tool === 'line' ? '#e0e0e0' : '#fff',
+                color: '#333',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+              }}
+              title="Line Tool"
+            >
+              <FaMinus size={14} />
+            </button>
+            <button
+              onClick={() => setTool('arrow')}
+              style={{
+                fontSize: 16,
+                backgroundColor: tool === 'arrow' ? '#e0e0e0' : '#fff',
+                color: '#333',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+              }}
+              title="Arrow Tool"
+            >
+              <FaLongArrowAltRight size={14} />
+            </button>
+            <button
+              onClick={() => setTool('rect')}
+              style={{
+                fontSize: 16,
+                backgroundColor: tool === 'rect' ? '#e0e0e0' : '#fff',
+                color: '#333',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+              }}
+              title="Rectangle Tool"
+            >
+              <FaSquare size={14} />
+            </button>
+            <button
+              onClick={() => setTool('ellipse')}
+              style={{
+                fontSize: 16,
+                backgroundColor: tool === 'ellipse' ? '#e0e0e0' : '#fff',
+                color: '#333',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+              }}
+              title="Circle Tool"
+            >
+              <FaCircle size={14} />
+            </button>
+            <button
+              onClick={() => setTool('text')}
+              style={{
+                fontSize: 16,
+                backgroundColor: tool === 'text' ? '#e0e0e0' : '#fff',
+                color: '#333',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+              }}
+              title="Text Tool"
+            >
+              <FaFont size={14} />
+            </button>
+          </div>
+
+          {/* Undo/Redo Buttons */}
+          <div style={{ display: 'flex', gap: 4, borderRight: '1px solid #ddd', paddingRight: 8 }}>
+            <button
+              onClick={handleUndo}
+              style={{
+                fontSize: 16,
+                backgroundColor: '#fff',
+                color: '#333',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+              }}
+              title="Undo"
+            >
+              <FaUndo size={14} />
+            </button>
+            <button
+              onClick={handleRedo}
+              style={{
+                fontSize: 16,
+                backgroundColor: '#fff',
+                color: '#333',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+              }}
+              title="Redo"
+            >
+              <FaRedo size={14} />
+            </button>
+            <button
+              onClick={handleClearCanvas}
+              style={{
+                fontSize: 16,
+                backgroundColor: '#fff',
+                color: '#333',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+              }}
+              title="Clear Canvas"
+            >
+              <FaEraser size={14} />
+            </button>
+          </div>
+
+          {/* Brush Size */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, borderRight: '1px solid #ddd', paddingRight: 8 }}>
+            <input
+              type="range"
+              min={1}
+              max={20}
+              value={tool === 'text' ? fontSize : brushSize}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                if (tool === 'text') {
+                  setFontSize(value);
+                } else {
+                  setBrushSize(value);
+                }
+              }}
+              style={{
+                width: 80,
+                cursor: "pointer",
+              }}
+            />
+            <span style={{ fontSize: 12, color: "#333", minWidth: 24 }}>
+              {tool === 'text' ? fontSize : brushSize}px
+            </span>
+          </div>
+
+          {/* Color Picker */}
+          <input
+            type="color"
+            value={brushColor}
+            onChange={(e) => setBrushColor(e.target.value)}
+            style={{
+              width: 32,
+              height: 32,
+              padding: 2,
+              border: 'none',
+              borderRadius: 4,
+              cursor: "pointer",
+              background: "none",
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 };
