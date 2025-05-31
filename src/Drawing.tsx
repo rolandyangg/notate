@@ -451,18 +451,20 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
   
     const handleResizeMouseDown = (e: React.MouseEvent) => {
       e.preventDefault();
+      e.stopPropagation(); // Stop event propagation
       const canvas = canvasRef.current!;
       const imageDataURL = canvas.toDataURL();
       const aspectRatio = size.width / size.height;
       const startX = e.clientX;
       const startY = e.clientY;
       const startWidth = size.width;
-  
+
+      // Create handlers outside of the resize div's scope
       const onMouseMove = (e: MouseEvent) => {
         const delta = Math.max(e.clientX - startX, e.clientY - startY);
         const newWidth = Math.max(100, startWidth + delta);
         const newHeight = newWidth / aspectRatio;
-  
+
         setSize(() => {
           setTimeout(() => {
             const ctx = canvas.getContext("2d")!;
@@ -476,12 +478,13 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
           return { width: newWidth, height: newHeight };
         });
       };
-  
+
       const onMouseUp = () => {
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
+        saveState(); // Save state after resize
       };
-  
+
       document.addEventListener("mousemove", onMouseMove);
       document.addEventListener("mouseup", onMouseUp);
     };
@@ -493,16 +496,33 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       e.preventDefault();
       e.stopPropagation();
 
-      // Deselect any selected text
-      setTextElements(prev => prev.map(el => ({ ...el, isSelected: false })));
-      setSelectedText(null);
-
-      const rect = canvasRef.current!.getBoundingClientRect();
+      // Get click coordinates relative to the container
+      const rect = containerRef.current!.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
-      setActiveTextInput({ x, y });
-      setTextInputValue('');
+      // Define resize handle area (slightly larger than the visible handle for better UX)
+      const resizeHandleArea = {
+        right: size.width,
+        bottom: size.height,
+        width: 20, // Slightly larger than the visible 16px handle
+        height: 20
+      };
+
+      // Check if click is in resize handle area
+      const isInResizeArea = 
+        x >= resizeHandleArea.right - resizeHandleArea.width && 
+        y >= resizeHandleArea.bottom - resizeHandleArea.height;
+
+      // Only create new text if not clicking in resize area
+      if (!isInResizeArea) {
+        // Deselect any selected text
+        setTextElements(prev => prev.map(el => ({ ...el, isSelected: false })));
+        setSelectedText(null);
+
+        setActiveTextInput({ x, y });
+        setTextInputValue('');
+      }
     };
 
     // Handle text input completion
@@ -817,7 +837,10 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
           width: '100%',
           height: '100%',
           pointerEvents: tool === 'text' ? 'auto' : 'none',
-          zIndex: 1
+          zIndex: 1,
+          overflow: 'visible',
+          minWidth: size.width,
+          minHeight: size.height
         }}
         onClick={handleCanvasClick}
       >
@@ -827,7 +850,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
             key={element.id}
             style={{
               position: 'absolute',
-              left: element.x,
+              left: Math.min(element.x, size.width - 20),
               top: element.y - (element.fontSize / 2),
               cursor: tool === 'text' ? 'move' : 'default',
               zIndex: 2,
@@ -873,9 +896,9 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
                     outline: 'none',
                     font: `${element.fontSize}px Arial`,
                     color: element.color,
-                    minWidth: '100px',
                     padding: '2px',
                     margin: 0,
+                    width: 'auto'
                   }}
                 />
               ) : (
@@ -902,12 +925,12 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
           </div>
         ))}
 
-        {/* Active Text Input for new text */}
+        {/* Active Text Input */}
         {activeTextInput && (
           <div
             style={{
               position: 'absolute',
-              left: activeTextInput.x,
+              left: Math.min(activeTextInput.x, size.width - 20),
               top: activeTextInput.y - (fontSize / 2),
               zIndex: 2,
             }}
@@ -930,9 +953,9 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
                 outline: 'none',
                 font: `${fontSize}px Arial`,
                 color: brushColor,
-                minWidth: '100px',
                 padding: '2px',
                 margin: 0,
+                width: 'auto'
               }}
             />
           </div>
@@ -958,6 +981,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
         onMouseLeave={stopDrawing}
       />
 
+      {/* Resize handle with fixed positioning */}
       <div
         onMouseDown={handleResizeMouseDown}
         style={{
@@ -968,6 +992,9 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
           height: 16,
           background: "#ccc",
           cursor: "nwse-resize",
+          zIndex: 3,
+          pointerEvents: "auto",
+          transform: 'none'
         }}
       />
       {isHovered && (
