@@ -981,22 +981,66 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
         onMouseLeave={stopDrawing}
       />
 
-      {/* Resize handle with fixed positioning */}
+      {/* Modern resize handle */}
       <div
         onMouseDown={handleResizeMouseDown}
         style={{
           position: "absolute",
-          right: 0,
-          bottom: 0,
-          width: 16,
-          height: 16,
-          background: "#ccc",
+          right: 4,
+          bottom: 4,
+          width: 32,
+          height: 32,
           cursor: "nwse-resize",
           zIndex: 3,
           pointerEvents: "auto",
-          transform: 'none'
+          opacity: isHovered ? 1 : 0,
+          transition: 'opacity 0.2s ease',
+          backgroundColor: 'transparent'
         }}
-      />
+      >
+        <svg
+          width="32"
+          height="32"
+          viewBox="0 0 32 32"
+          style={{
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+          }}
+        >
+          {/* Background circle for better visibility */}
+          <circle
+            cx="16"
+            cy="16"
+            r="16"
+            fill="white"
+            opacity="0.8"
+          />
+          
+          {/* Main diagonal arrow line */}
+          <line
+            x1="8"
+            y1="8"
+            x2="24"
+            y2="24"
+            stroke="#666"
+            strokeWidth="3"
+          />
+          
+          {/* Arrow heads */}
+          {/* Top-left arrow head */}
+          <path
+            d="M8,8 L8,14 L14,8 Z"
+            fill="#666"
+          />
+          
+          {/* Bottom-right arrow head */}
+          <path
+            d="M24,24 L18,24 L24,18 Z"
+            fill="#666"
+          />
+        </svg>
+      </div>
       {isHovered && (
         <div
           ref={toolbarRef}
