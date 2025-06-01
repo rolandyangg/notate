@@ -4,10 +4,12 @@ import commentIcon from './assets/comment-icon.png';
 import textboxIcon from './assets/textbox-icon.png';
 import commentIconWhite from './assets/comment-white.png';
 import textboxIconWhite from './assets/textbox-white.png';
+import scribbleIcon from './assets/scribble-icon.svg';
+import scribbleIconWhite from './assets/scribble-white.svg';
 
 interface OverlayToolbarProps {
-  mode: 'comment-mode' | 'textbox-mode' | 'no-annotation-mode';
-  setMode: (mode: 'comment-mode' | 'textbox-mode' | 'no-annotation-mode') => void;
+  mode: 'comment-mode' | 'textbox-mode' | 'scribble-mode' | 'no-annotation-mode';
+  setMode: (mode: 'comment-mode' | 'textbox-mode' | 'scribble-mode' | 'no-annotation-mode') => void;
 }
 
 export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode }) => {
@@ -23,6 +25,10 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
 
   const handleTextboxClick = () => {
     setMode(mode === 'textbox-mode' ? 'no-annotation-mode' : 'textbox-mode');
+  };
+
+  const handleScribbleClick = () => {
+    setMode(mode === 'scribble-mode' ? 'no-annotation-mode' : 'scribble-mode');
   };
 
   return (
@@ -67,13 +73,15 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
           <img src={commentIconWhite} alt="Comment" style={{ height: 20, objectFit: 'contain' }} />
         ) : (mode === 'textbox-mode' && !expanded) ? (
           <img src={textboxIconWhite} alt="Textbox" style={{ height: 38, objectFit: 'contain' }} />
+        ) : (mode === 'scribble-mode' && !expanded) ? (
+          <img src={scribbleIconWhite} alt="Scribble" style={{ height: 28, objectFit: 'contain' }} />
         ) : (
           <img src={annotateIcon} alt="Annotate" style={{ height: 28, objectFit: 'contain' }} />
         )}
       </button>
       <div
         style={{
-          height: expanded ? 120 : 0,
+          height: expanded ? 180 : 0,
           overflow: 'hidden',
           transition: 'height 0.3s cubic-bezier(.4,0,.2,1)',
           display: 'flex',
@@ -129,6 +137,30 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
           aria-label="Textbox mode"
         >
           <img src={textboxIcon} alt="Textbox" style={{ height: 38, objectFit: 'contain' }} />
+        </button>
+        <button
+          onClick={handleScribbleClick}
+          style={{
+            opacity: expanded ? 1 : 0,
+            transform: expanded ? 'scaleY(1)' : 'scaleY(0.8)',
+            pointerEvents: expanded ? 'auto' : 'none',
+            transition: 'opacity 0.2s, transform 0.2s',
+            background: mode === 'scribble-mode' ? '#e0e0e0' : 'none',
+            border: 'none',
+            padding: 0,
+            margin: 0,
+            cursor: 'pointer',
+            outline: 'none',
+            borderRadius: '12px',
+            width: 50,
+            height: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          aria-label="Scribble mode"
+        >
+          <img src={scribbleIcon} alt="Scribble" style={{ height: 28, objectFit: 'contain' }} />
         </button>
       </div>
     </div>
