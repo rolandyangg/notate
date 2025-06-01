@@ -14,6 +14,9 @@ export const ScribbleOverlay = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isEraser, setIsEraser] = useState(false);
+  const [isSpaceHeld, setIsSpaceHeld] = useState(false);
+  const isMouseDown = useRef(false);
+  const didDrawInStroke = useRef(false);
 
   // Initialize canvas once on mount
   useEffect(() => {
@@ -50,6 +53,31 @@ export const ScribbleOverlay = ({
       window.removeEventListener('resize', updateCanvasSize);
     };
   }, []); // Empty dependency array means this runs once on mount
+
+  // Add spacebar handling
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        setIsSpaceHeld(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        setIsSpaceHeld(false);
+        stopDrawing();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [isDrawing, isMouseDown]);
 
   // KeyBindings
   useEffect(() => {
@@ -99,15 +127,16 @@ export const ScribbleOverlay = ({
     const y = e.clientY - rect.top;
 
     setIsDrawing(true);
+    isMouseDown.current = true;
+    didDrawInStroke.current = false;
 
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.beginPath();
       ctx.moveTo(x, y);
-      // Set the appropriate style based on mode
       if (isEraser) {
         ctx.globalCompositeOperation = 'destination-out';
-        ctx.lineWidth = 20; // Wider line for eraser
+        ctx.lineWidth = 20;
       } else {
         ctx.globalCompositeOperation = 'source-over';
         ctx.lineWidth = 2;
@@ -116,20 +145,31 @@ export const ScribbleOverlay = ({
   };
 
   const draw = (e: React.MouseEvent) => {
-    if (!isDrawing || !isScribbleMode) return;
+    if (!isScribbleMode) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    ctx.lineTo(x, y);
-    ctx.stroke();
+    // Only start a stroke when spacebar is currently held or mouse is down
+    const shouldStartStroke = (isSpaceHeld || isMouseDown.current) && !isDrawing;
+
+    if (shouldStartStroke) {
+      startDrawing(e);
+      return;
+    }
+
+    if (isDrawing && (isSpaceHeld || isMouseDown.current)) {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      didDrawInStroke.current = true;
+    }
   };
 
   const stopDrawing = () => {
@@ -141,11 +181,12 @@ export const ScribbleOverlay = ({
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.closePath();
-      // Reset composite operation
       ctx.globalCompositeOperation = 'source-over';
     }
     
     setIsDrawing(false);
+    isMouseDown.current = false;
+    didDrawInStroke.current = false;
   };
 
   const clearCanvas = () => {
