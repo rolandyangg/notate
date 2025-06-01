@@ -11,8 +11,42 @@ export const ScribbleOverlay = ({
 }: ScribbleOverlayProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [lastX, setLastX] = useState(0);
-  const [lastY, setLastY] = useState(0);
+
+  // Initialize canvas once on mount
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const updateCanvasSize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      // Set the canvas size accounting for device pixel ratio
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+
+      // Scale the context to match the device pixel ratio
+      ctx.scale(dpr, dpr);
+
+      // Set default drawing style
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    };
+
+    // Initial setup
+    updateCanvasSize();
+    window.addEventListener('resize', updateCanvasSize);
+
+    return () => {
+      window.removeEventListener('resize', updateCanvasSize);
+    };
+  }, []); // Empty dependency array means this runs once on mount
 
   // KeyBindings
   useEffect(() => {
@@ -51,45 +85,6 @@ export const ScribbleOverlay = ({
     };
   }, [isScribbleMode, setIsScribbleMode]);
 
-  // Initialize canvas
-  useEffect(() => { 
-    if (!canvasRef.current) {
-      console.log('Canvas ref is null');
-      return;
-    }
-    
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      console.log('Could not get canvas context');
-      return;
-    }
-    
-    // Set canvas size to match window size
-    const updateCanvasSize = () => {
-      console.log('Updating canvas size...');
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      
-      // Scale the context to match the device pixel ratio
-      ctx.scale(dpr, dpr);
-      
-      // Set default drawing style
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-    };
-
-    updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
-    
-    return () => {
-      window.removeEventListener('resize', updateCanvasSize);
-    };
-  }, [isScribbleMode]); // Add isScribbleMode as a dependency
-
   const startDrawing = (e: React.MouseEvent) => {
     if (!isScribbleMode) return;
     
@@ -101,17 +96,11 @@ export const ScribbleOverlay = ({
     const y = e.clientY - rect.top;
 
     setIsDrawing(true);
-    setLastX(x);
-    setLastY(y);
 
-    // Start a new path
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.beginPath();
       ctx.moveTo(x, y);
-      // Draw a dot at the starting point
-      ctx.arc(x, y, 1, 0, Math.PI * 2);
-      ctx.fill();
     }
   };
 
@@ -160,37 +149,36 @@ export const ScribbleOverlay = ({
   };
 
   return (
-    <>
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 999,
+        cursor: isScribbleMode ? 'crosshair' : 'default',
+        pointerEvents: isScribbleMode ? 'auto' : 'none',
+        backgroundColor: isScribbleMode ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        onMouseDown={startDrawing}
+        onMouseMove={draw}
+        onMouseUp={stopDrawing}
+        onMouseOut={stopDrawing}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          pointerEvents: isScribbleMode ? 'auto' : 'none',
+        }}
+      />
       {isScribbleMode && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 999,
-            cursor: 'crosshair',
-            pointerEvents: 'auto',
-            backgroundColor: 'rgba(255, 255, 255, 0.1)', // Slight white background
-          }}
-        >
-          <canvas
-            ref={canvasRef}
-            onMouseDown={startDrawing}
-            onMouseMove={draw}
-            onMouseUp={stopDrawing}
-            onMouseOut={stopDrawing}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              pointerEvents: 'auto',
-              border: '1px solid red', // Temporary border to see canvas boundaries
-            }}
-          />
+        <>
           <div
             style={{
               position: 'fixed',
@@ -224,8 +212,8 @@ export const ScribbleOverlay = ({
           >
             Clear Drawing
           </button>
-        </div>
+        </>
       )}
-    </>
+    </div>
   );
 }; 
