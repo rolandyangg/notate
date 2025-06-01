@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { HiPencil, HiOutlineTrash } from 'react-icons/hi';
+import eraserIcon from './assets/eraser.svg';
 
 interface ScribbleOverlayProps {
   isScribbleMode: boolean;
@@ -11,6 +13,7 @@ export const ScribbleOverlay = ({
 }: ScribbleOverlayProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isEraser, setIsEraser] = useState(false);
 
   // Initialize canvas once on mount
   useEffect(() => {
@@ -101,6 +104,14 @@ export const ScribbleOverlay = ({
     if (ctx) {
       ctx.beginPath();
       ctx.moveTo(x, y);
+      // Set the appropriate style based on mode
+      if (isEraser) {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth = 20; // Wider line for eraser
+      } else {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.lineWidth = 2;
+      }
     }
   };
 
@@ -119,9 +130,6 @@ export const ScribbleOverlay = ({
 
     ctx.lineTo(x, y);
     ctx.stroke();
-
-    setLastX(x);
-    setLastY(y);
   };
 
   const stopDrawing = () => {
@@ -133,6 +141,8 @@ export const ScribbleOverlay = ({
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.closePath();
+      // Reset composite operation
+      ctx.globalCompositeOperation = 'source-over';
     }
     
     setIsDrawing(false);
@@ -148,6 +158,19 @@ export const ScribbleOverlay = ({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
+  // Add this new effect to track mouse position
+  useEffect(() => {
+    if (!isScribbleMode || !isEraser) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+      document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [isScribbleMode, isEraser]);
+
   return (
     <div
       style={{
@@ -157,7 +180,7 @@ export const ScribbleOverlay = ({
         right: 0,
         bottom: 0,
         zIndex: 999,
-        cursor: isScribbleMode ? 'crosshair' : 'default',
+        cursor: isScribbleMode ? (isEraser ? 'none' : 'crosshair') : 'default',
         pointerEvents: isScribbleMode ? 'auto' : 'none',
         backgroundColor: isScribbleMode ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
       }}
@@ -175,8 +198,32 @@ export const ScribbleOverlay = ({
           width: '100%',
           height: '100%',
           pointerEvents: isScribbleMode ? 'auto' : 'none',
+          cursor: isScribbleMode ? (isEraser ? 'none' : 'crosshair') : 'default',
         }}
       />
+      {isScribbleMode && isEraser && (
+        <div
+          style={{
+            position: 'fixed',
+            width: '20px',
+            height: '20px',
+            pointerEvents: 'none',
+            zIndex: 1000,
+            transform: 'translate(-50%, -50%)',
+            left: 'var(--mouse-x, 0px)',
+            top: 'var(--mouse-y, 0px)',
+          }}
+        >
+          <img 
+            src={eraserIcon} 
+            alt="Eraser cursor" 
+            style={{ 
+              width: '100%',
+              height: '100%',
+            }} 
+          />
+        </div>
+      )}
       {isScribbleMode && (
         <>
           <div
@@ -192,26 +239,90 @@ export const ScribbleOverlay = ({
               pointerEvents: 'none',
             }}
           >
-            Draw anywhere on the screen
+            {isEraser ? 'Erase anywhere on the screen' : 'Draw anywhere on the screen'}
           </div>
-          <button
-            onClick={clearCanvas}
+          <div
             style={{
               position: 'fixed',
               bottom: '20px',
               left: '50%',
               transform: 'translateX(-50%)',
-              padding: '8px 16px',
-              backgroundColor: '#f44336',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              pointerEvents: 'auto',
+              display: 'flex',
+              gap: '20px',
+              alignItems: 'center',
             }}
           >
-            Clear Drawing
-          </button>
+            <div
+              style={{
+                display: 'flex',
+                backgroundColor: '#f0f0f0',
+                borderRadius: '8px',
+                padding: '4px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              }}
+            >
+              <button
+                onClick={() => setIsEraser(false)}
+                style={{
+                  padding: '8px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  backgroundColor: !isEraser ? '#e0e0e0' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background-color 0.2s',
+                }}
+              >
+                <HiPencil size={24} color={!isEraser ? '#2196F3' : '#5A5A5A'} />
+              </button>
+              <button
+                onClick={() => setIsEraser(true)}
+                style={{
+                  padding: '8px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  backgroundColor: isEraser ? '#e0e0e0' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background-color 0.2s',
+                }}
+              >
+                <img 
+                  src={eraserIcon} 
+                  alt="Eraser" 
+                  style={{ 
+                    width: '24px', 
+                    height: '24px',
+                    opacity: isEraser ? 1 : 0.5,
+                    filter: isEraser ? 'invert(45%) sepia(82%) saturate(1742%) hue-rotate(187deg) brightness(101%) contrast(101%)' : 'grayscale(100%)',
+                  }} 
+                />
+              </button>
+            </div>
+            <button
+              onClick={clearCanvas}
+              style={{
+                padding: '8px',
+                backgroundColor: '#f44336',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                pointerEvents: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '44px',
+                height: '44px',
+              }}
+            >
+              <HiOutlineTrash size={24} />
+            </button>
+          </div>
         </>
       )}
     </div>
