@@ -17,6 +17,7 @@ export const ScribbleOverlay = ({
   const [isSpaceHeld, setIsSpaceHeld] = useState(false);
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
   const [backgroundState, setBackgroundState] = useState(false); // false = draw, true = erase
+  const [strokeColor, setStrokeColor] = useState('#5A5A5A');
   const isMouseDown = useRef(false);
   const didDrawInStroke = useRef(false);
 
@@ -155,6 +156,7 @@ export const ScribbleOverlay = ({
       } else {
         ctx.globalCompositeOperation = 'source-over';
         ctx.lineWidth = 2;
+        ctx.strokeStyle = strokeColor;
       }
     }
   };
@@ -362,6 +364,64 @@ export const ScribbleOverlay = ({
                     filter: isEraser ? 'invert(45%) sepia(82%) saturate(1742%) hue-rotate(187deg) brightness(101%) contrast(101%)' : 'grayscale(100%)',
                   }} 
                 />
+              </button>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                backgroundColor: '#f0f0f0',
+                borderRadius: '8px',
+                padding: '4px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              }}
+            >
+              <button
+                onClick={() => setStrokeColor('#5A5A5A')}
+                style={{
+                  padding: '8px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  backgroundColor: strokeColor === '#5A5A5A' ? '#e0e0e0' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background-color 0.2s',
+                }}
+              >
+                <div style={{ width: '24px', height: '24px', backgroundColor: '#5A5A5A', borderRadius: '50%' }} />
+              </button>
+              <button
+                onClick={() => setStrokeColor('#FF0000')}
+                style={{
+                  padding: '8px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  backgroundColor: strokeColor === '#FF0000' ? '#e0e0e0' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background-color 0.2s',
+                }}
+              >
+                <div style={{ width: '24px', height: '24px', backgroundColor: '#FF0000', borderRadius: '50%' }} />
+              </button>
+              <button
+                onClick={() => setStrokeColor('#2196F3')}
+                style={{
+                  padding: '8px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  backgroundColor: strokeColor === '#2196F3' ? '#e0e0e0' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background-color 0.2s',
+                }}
+              >
+                <div style={{ width: '24px', height: '24px', backgroundColor: '#2196F3', borderRadius: '50%' }} />
               </button>
             </div>
             <button
