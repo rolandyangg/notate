@@ -118,6 +118,7 @@ export const TextboxOverlay = ({
     };
 
     setTextboxes(prev => [...prev, newTextbox]);
+    setIsTextboxMode(false);
   };
 
   // Handle text changes

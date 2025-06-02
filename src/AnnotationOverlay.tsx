@@ -269,6 +269,7 @@ export const AnnotationOverlay = ({
         setAnnotations(prevAnnotations => [...prevAnnotations, newAnnotation]);
         setCurrentAnnotation(null);
         setStep('selecting-point'); // Go directly to selecting-point for next annotation
+        setIsAnnotationMode(false);
       }
     }
   };
