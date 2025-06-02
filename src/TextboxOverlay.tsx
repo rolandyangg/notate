@@ -223,6 +223,9 @@ export const TextboxOverlay = ({
                   paddingRight: '24px',
                   backgroundColor: '#dddddd',
                   outline: 'none',
+                  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                  fontSize: '14px',
+                  lineHeight: '1.5',
                 }}
               />
               <button
@@ -258,7 +261,11 @@ export const TextboxOverlay = ({
               </button>
             </div>
           ) : (
-            <div>
+            <div style={{
+              fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+              fontSize: '14px',
+              lineHeight: '1.5',
+            }}>
               {textbox.text || 'Double-click to edit'}
             </div>
           )}

@@ -469,6 +469,9 @@ export const AnnotationOverlay = ({
                     paddingRight: '24px', // Make room for the delete button
                     backgroundColor: '#dddddd',
                     outline: 'none',
+                    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                    fontSize: '14px',
+                    lineHeight: '1.5',
                   }}
                 />
                 <button
@@ -504,7 +507,11 @@ export const AnnotationOverlay = ({
                 </button>
               </div>
             ) : (
-              <div>
+              <div style={{
+                fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                fontSize: '14px',
+                lineHeight: '1.5',
+              }}>
                 {annotation.text || 'Double-click to edit'}
               </div>
             )}
