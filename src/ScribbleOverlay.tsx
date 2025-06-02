@@ -60,7 +60,7 @@ export const ScribbleOverlay = ({
   // Add spacebar and E key handling
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
+      if (e.code === "Space" && isScribbleMode) {
         e.preventDefault();
         setIsSpaceHeld(true);
         setIsEraser(false);
@@ -72,7 +72,7 @@ export const ScribbleOverlay = ({
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
+      if (e.code === "Space" && isScribbleMode) {
         e.preventDefault();
         setIsEraser(backgroundState);
         setIsSpaceHeld(false);
