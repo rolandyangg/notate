@@ -15,6 +15,8 @@ export const ScribbleOverlay = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [isEraser, setIsEraser] = useState(false);
   const [isSpaceHeld, setIsSpaceHeld] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
+  const [backgroundState, setBackgroundState] = useState(false); // false = draw, true = erase
   const isMouseDown = useRef(false);
   const didDrawInStroke = useRef(false);
 
@@ -54,17 +56,30 @@ export const ScribbleOverlay = ({
     };
   }, []); // Empty dependency array means this runs once on mount
 
-  // Add spacebar handling
+  // Add spacebar and E key handling
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space") {
         e.preventDefault();
+        setIsSpaceHeld(true);
+        setIsEraser(false);
+      }
+      if (e.code === "KeyE" && isScribbleMode) {
+        e.preventDefault();
+        setIsEraser(true);
         setIsSpaceHeld(true);
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === "Space") {
         e.preventDefault();
+        setIsEraser(backgroundState);
+        setIsSpaceHeld(false);
+        stopDrawing();
+      }
+      if (e.code === "KeyE" && isScribbleMode) {
+        e.preventDefault();
+        setIsEraser(backgroundState);
         setIsSpaceHeld(false);
         stopDrawing();
       }
@@ -199,18 +214,17 @@ export const ScribbleOverlay = ({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  // Add this new effect to track mouse position
+  // Track mouse position
   useEffect(() => {
-    if (!isScribbleMode || !isEraser) return;
+    if (!isScribbleMode) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
-      document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+      setCursorPosition({ x: e.clientX, y: e.clientY });
     };
 
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [isScribbleMode, isEraser]);
+  }, [isScribbleMode]);
 
   return (
     <div
@@ -251,8 +265,8 @@ export const ScribbleOverlay = ({
             pointerEvents: 'none',
             zIndex: 1000,
             transform: 'translate(-50%, -50%)',
-            left: 'var(--mouse-x, 0px)',
-            top: 'var(--mouse-y, 0px)',
+            left: `${cursorPosition.x}px`,
+            top: `${cursorPosition.y}px`,
           }}
         >
           <img 
@@ -303,7 +317,10 @@ export const ScribbleOverlay = ({
               }}
             >
               <button
-                onClick={() => setIsEraser(false)}
+                onClick={() => {
+                  setIsEraser(false);
+                  setBackgroundState(false);
+                }}
                 style={{
                   padding: '8px',
                   border: 'none',
@@ -319,7 +336,10 @@ export const ScribbleOverlay = ({
                 <HiPencil size={24} color={!isEraser ? '#2196F3' : '#5A5A5A'} />
               </button>
               <button
-                onClick={() => setIsEraser(true)}
+                onClick={() => {
+                  setIsEraser(true);
+                  setBackgroundState(true);
+                }}
                 style={{
                   padding: '8px',
                   border: 'none',
