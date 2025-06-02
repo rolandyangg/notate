@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { BlockNoteEditor } from "@blocknote/core";
 
 interface Textbox {
   id: string;
@@ -10,7 +9,6 @@ interface Textbox {
 }
 
 interface TextboxOverlayProps {
-  editor: BlockNoteEditor<any, any, any>;
   textboxes: Textbox[];
   setTextboxes: React.Dispatch<React.SetStateAction<Textbox[]>>;
   isTextboxMode: boolean;

@@ -22,6 +22,7 @@ import { Tutorial } from "./Tutorial";
 import { useState, useRef, useEffect } from "react";
 import { TextboxOverlay } from "./TextboxOverlay";
 import { OverlayToolbar } from "./OverlayToolbar";
+import { ScribbleOverlay } from "./ScribbleOverlay";
 
 // Custom "Drawing Block" menu item
 const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
@@ -83,7 +84,7 @@ function App() {
   });
   const [annotations, setAnnotations] = useState<any[]>([]);
   const [textboxes, setTextboxes] = useState<any[]>([]);
-  const [mode, setMode] = useState<'comment-mode' | 'textbox-mode' | 'no-annotation-mode'>('no-annotation-mode');
+  const [mode, setMode] = useState<'comment-mode' | 'textbox-mode' | 'scribble-mode' | 'no-annotation-mode'>('no-annotation-mode');
   const [showTutorial, setShowTutorial] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -148,8 +149,17 @@ function App() {
     }
   };
 
+  const setIsScribbleMode = (value: boolean | ((prev: boolean) => boolean)) => {
+    if (typeof value === 'function') {
+      const newValue = value(mode === 'scribble-mode');
+      setMode(newValue ? 'scribble-mode' : 'no-annotation-mode');
+    } else {
+      setMode(value ? 'scribble-mode' : 'no-annotation-mode');
+    }
+  };
+
   // Helper function to check if a mode is active
-  const isModeActive = (modeToCheck: 'comment-mode' | 'textbox-mode') => {
+  const isModeActive = (modeToCheck: 'comment-mode' | 'textbox-mode' | 'scribble-mode') => {
     return mode === modeToCheck;
   };
 
@@ -329,11 +339,14 @@ function App() {
         setIsAnnotationMode={setIsAnnotationMode}
       />
       <TextboxOverlay
-        editor={editor}
         textboxes={textboxes}
         setTextboxes={setTextboxes}
         isTextboxMode={isModeActive('textbox-mode')}
         setIsTextboxMode={setIsTextboxMode}
+      />
+      <ScribbleOverlay
+        isScribbleMode={isModeActive('scribble-mode')}
+        setIsScribbleMode={setIsScribbleMode}
       />
     </div>
   );

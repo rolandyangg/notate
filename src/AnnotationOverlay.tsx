@@ -148,7 +148,7 @@ export const AnnotationOverlay = ({
     };
 
     // Subscribe to BlockNote editor events
-    editor.onEditorContentChange(() => {
+    editor.onChange(() => {
       requestAnimationFrame(updateBlockPositions);
     });
 
