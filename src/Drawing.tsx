@@ -601,11 +601,6 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       dragStart.current = { x, y };
     };
 
-    const handleTextMouseUp = () => {
-      setIsDragging(false);
-      setIsResizing(false);
-    };
-
     // Handle text resizing
     const handleTextResize = (e: React.MouseEvent, id: string) => {
       if (tool !== 'text') return;
