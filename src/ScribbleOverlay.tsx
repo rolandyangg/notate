@@ -95,7 +95,7 @@ export const ScribbleOverlay = ({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [isDrawing, isMouseDown]);
+  }, [isScribbleMode, backgroundState, isDrawing]);
 
   // KeyBindings
   useEffect(() => {
