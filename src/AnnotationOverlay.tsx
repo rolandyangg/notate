@@ -12,7 +12,7 @@ interface Annotation {
 
 interface DragState {
   id: string;
-  type: 'textbox' | 'point';
+  type: 'textbox' | 'point' | 'annotation-creation';
   startX: number;
   startY: number;
 }
@@ -41,10 +41,10 @@ export const AnnotationOverlay = ({
 }: AnnotationOverlayProps) => {
   const annotationsRef = useRef<Annotation[]>([]);
   const [currentAnnotation, setCurrentAnnotation] = useState<Partial<Annotation> | null>(null);
-  const [step, setStep] = useState<'selecting-point' | 'placing-textbox'>('selecting-point');
   const [dragState, setDragState] = useState<DragState | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const blockPositionsRef = useRef<BlockPosition[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Add keyboard event listener for Tab+C to start/stop annotation mode
   useEffect(() => {
@@ -175,39 +175,109 @@ export const AnnotationOverlay = ({
     const dx = e.clientX - dragState.startX;
     const dy = e.clientY - dragState.startY;
 
-    setAnnotations(annotations.map(ann => {
-      if (ann.id === dragState.id) {
-        if (dragState.type === 'textbox') {
-          return {
-            ...ann,
-            textBox: {
-              x: ann.textBox.x + dx,
-              y: ann.textBox.y + dy
-            }
-          };
-        } else {
-          return {
-            ...ann,
-            startPoint: {
-              x: ann.startPoint.x + dx,
-              y: ann.startPoint.y + dy
-            }
-          };
+    if (dragState.type === 'annotation-creation') {
+      // Update the current annotation's textbox position during creation
+      setCurrentAnnotation(prev => prev ? {
+        ...prev,
+        textBox: {
+          x: prev.startPoint!.x + dx,
+          y: prev.startPoint!.y + dy
         }
-      }
-      return ann;
-    }));
+      } : null);
+    } else {
+      // Handle existing annotation dragging
+      setAnnotations(annotations.map(ann => {
+        if (ann.id === dragState.id) {
+          if (dragState.type === 'textbox') {
+            return {
+              ...ann,
+              textBox: {
+                x: ann.textBox.x + dx,
+                y: ann.textBox.y + dy
+              }
+            };
+          } else {
+            return {
+              ...ann,
+              startPoint: {
+                x: ann.startPoint.x + dx,
+                y: ann.startPoint.y + dy
+              }
+            };
+          }
+        }
+        return ann;
+      }));
 
-    setDragState({
-      ...dragState,
-      startX: e.clientX,
-      startY: e.clientY
-    });
+      setDragState({
+        ...dragState,
+        startX: e.clientX,
+        startY: e.clientY
+      });
+    }
   };
 
   // Handle mouse up to end dragging
   const handleMouseUp = () => {
+    if (dragState?.type === 'annotation-creation' && currentAnnotation) {
+      // Create the new annotation
+      const newAnnotation: Annotation = {
+        ...currentAnnotation as Annotation,
+        textBox: currentAnnotation.textBox || currentAnnotation.startPoint!,
+        text: '',
+        isEditing: true,
+      };
+      setAnnotations(prevAnnotations => [...prevAnnotations, newAnnotation]);
+      setCurrentAnnotation(null);
+      setIsAnnotationMode(false);
+    }
     setDragState(null);
+    setIsDragging(false);
+  };
+
+  // Handle mouse down for starting annotation creation
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isAnnotationMode) return;
+
+    const blocks = editor.document;
+    let clickedBlock = null;
+    
+    const editorElement = document.querySelector('.blocknote-editor');
+    if (editorElement) {
+      const blockElements = editorElement.querySelectorAll('.bn-block');
+
+      for (const blockElement of blockElements) {
+        const rect = blockElement.getBoundingClientRect();
+        
+        if (
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom
+        ) {
+          const blockIndex = Array.from(blockElements).indexOf(blockElement);
+          if (blockIndex !== -1 && blocks[blockIndex]) {
+            clickedBlock = blocks[blockIndex];
+            break;
+          }
+        }
+      }
+
+      setCurrentAnnotation({
+        id: `annotation-${Date.now()}`,
+        startPoint: { x: e.clientX, y: e.clientY },
+        textBox: { x: e.clientX, y: e.clientY },
+        blockId: clickedBlock?.id
+      });
+
+      setDragState({
+        id: `annotation-${Date.now()}`,
+        type: 'annotation-creation',
+        startX: e.clientX,
+        startY: e.clientY
+      });
+      setIsDragging(true);
+    }
   };
 
   // Add and remove event listeners for drag
@@ -220,59 +290,7 @@ export const AnnotationOverlay = ({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [dragState]);
-
-  // Handle click events for annotation placement
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (!isAnnotationMode) return;
-
-    if (step === 'selecting-point') {
-      const blocks = editor.document;
-      let clickedBlock = null;
-      
-      const editorElement = document.querySelector('.blocknote-editor');
-      if (editorElement) {
-        const blockElements = editorElement.querySelectorAll('.bn-block');
-
-        for (const blockElement of blockElements) {
-          const rect = blockElement.getBoundingClientRect();
-          
-          if (
-            e.clientX >= rect.left &&
-            e.clientX <= rect.right &&
-            e.clientY >= rect.top &&
-            e.clientY <= rect.bottom
-          ) {
-            const blockIndex = Array.from(blockElements).indexOf(blockElement);
-            if (blockIndex !== -1 && blocks[blockIndex]) {
-              clickedBlock = blocks[blockIndex];
-              break;
-            }
-          }
-        }
-
-        setCurrentAnnotation({
-          id: `annotation-${Date.now()}`,
-          startPoint: { x: e.clientX, y: e.clientY },
-          blockId: clickedBlock?.id
-        });
-        setStep('placing-textbox');
-      }
-    } else if (step === 'placing-textbox') {
-      if (currentAnnotation) {
-        const newAnnotation: Annotation = {
-          ...currentAnnotation as Annotation,
-          textBox: { x: e.clientX, y: e.clientY },
-          text: '',
-          isEditing: true,
-        };
-        setAnnotations(prevAnnotations => [...prevAnnotations, newAnnotation]);
-        setCurrentAnnotation(null);
-        setStep('selecting-point'); // Go directly to selecting-point for next annotation
-        setIsAnnotationMode(false);
-      }
-    }
-  };
+  }, [dragState, currentAnnotation]);
 
   // Handle text changes
   const handleTextChange = (id: string, text: string) => {
@@ -280,15 +298,6 @@ export const AnnotationOverlay = ({
       ann.id === id ? { ...ann, text, isEditing: false } : ann
     ));
   };
-
-  // Effect to handle annotation mode changes
-  useEffect(() => {
-    if (isAnnotationMode) {
-      setStep('selecting-point');
-    } else {
-      setCurrentAnnotation(null);
-    }
-  }, [isAnnotationMode]);
 
   // Draw arrow between points
   const drawArrow = (start: { x: number; y: number }, end: { x: number; y: number }, id: string) => {
@@ -344,7 +353,7 @@ export const AnnotationOverlay = ({
       {isAnnotationMode && (
         <div
           ref={overlayRef}
-          onClick={handleOverlayClick}
+          onMouseDown={handleMouseDown}
           style={{
             position: 'fixed',
             top: 0,
@@ -355,7 +364,7 @@ export const AnnotationOverlay = ({
             cursor: 'crosshair',
           }}
         >
-          {step === 'selecting-point' && (
+          {!isDragging && (
             <div
               style={{
                 position: 'fixed',
@@ -368,24 +377,35 @@ export const AnnotationOverlay = ({
                 borderRadius: '4px',
               }}
             >
-              Click where you want the arrow to point to
+              Click and drag to add a comment
             </div>
           )}
-          {step === 'placing-textbox' && (
-            <div
-              style={{
-                position: 'fixed',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                color: 'white',
-                padding: '10px 20px',
-                borderRadius: '4px',
-              }}
-            >
-              Click where you want to place the text box
-            </div>
+          {currentAnnotation && isDragging && (
+            <>
+              {drawArrow(currentAnnotation.startPoint!, currentAnnotation.textBox!, currentAnnotation.id!)}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: currentAnnotation.textBox!.x,
+                  top: currentAnnotation.textBox!.y,
+                  backgroundColor: '#dddddd',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '8px',
+                  zIndex: 1000,
+                  opacity: 0.5,
+                }}
+              >
+                <div style={{
+                  width: '204px',
+                  minHeight: '68px',
+                  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+                  fontSize: '14px',
+                  lineHeight: '1.5',
+                }}>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -463,7 +483,7 @@ export const AnnotationOverlay = ({
                     }
                   }}
                   style={{
-                    width: '200px',
+                    width: '180px',
                     minHeight: '60px',
                     border: 'none',
                     resize: 'both',
