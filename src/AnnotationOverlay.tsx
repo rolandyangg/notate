@@ -218,7 +218,7 @@ export const AnnotationOverlay = ({
   };
 
   // Handle mouse up to end dragging
-  const handleMouseUp = (e: MouseEvent) => {
+  const handleMouseUp = () => {
     if (dragState?.type === 'annotation-creation' && currentAnnotation) {
       // Create the new annotation
       const newAnnotation: Annotation = {
