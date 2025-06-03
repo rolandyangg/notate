@@ -377,7 +377,7 @@ export const AnnotationOverlay = ({
                 borderRadius: '4px',
               }}
             >
-              Click and drag to create an annotation
+              Click and drag to add a comment
             </div>
           )}
           {currentAnnotation && isDragging && (
@@ -397,13 +397,12 @@ export const AnnotationOverlay = ({
                 }}
               >
                 <div style={{
-                  width: '200px',
-                  minHeight: '60px',
+                  width: '204px',
+                  minHeight: '68px',
                   fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
                   fontSize: '14px',
                   lineHeight: '1.5',
                 }}>
-                  Click to edit
                 </div>
               </div>
             </>
@@ -484,7 +483,7 @@ export const AnnotationOverlay = ({
                     }
                   }}
                   style={{
-                    width: '200px',
+                    width: '180px',
                     minHeight: '60px',
                     border: 'none',
                     resize: 'both',
