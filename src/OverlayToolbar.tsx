@@ -13,9 +13,23 @@ interface OverlayToolbarProps {
 
 export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode }) => {
   const [expanded, setExpanded] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handlePencilClick = () => {
-    setExpanded((prev) => !prev);
+    if (expanded) {
+      setExpanded(false);
+      setIsHovered(false);
+    } else {
+      setExpanded(true);
+    }
+  };
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
   };
 
   const handleCommentClick = () => {
@@ -44,10 +58,12 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: expanded ? 6 : 0,
+        gap: expanded || isHovered ? 6 : 0,
         transition: 'gap 0.2s',
         width: 56,
       }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <button
         onClick={handlePencilClick}
@@ -55,7 +71,7 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
           background: '#5A5A5A',
           border: 'none',
           padding: 0,
-          marginBottom: expanded ? 8 : 0,
+          marginBottom: expanded || isHovered ? 8 : 0,
           cursor: 'pointer',
           outline: 'none',
           borderRadius: '12px',
@@ -68,11 +84,11 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
         }}
         aria-label="Expand annotation menu"
       >
-        {(mode === 'comment-mode' && !expanded) ? (
+        {(mode === 'comment-mode' && !expanded && !isHovered) ? (
           <img src={commentIconWhite} alt="Comment" style={{ height: 20, objectFit: 'contain' }} />
-        ) : (mode === 'textbox-mode' && !expanded) ? (
+        ) : (mode === 'textbox-mode' && !expanded && !isHovered) ? (
           <img src={textboxIconWhite} alt="Textbox" style={{ height: 38, objectFit: 'contain' }} />
-        ) : (mode === 'scribble-mode' && !expanded) ? (
+        ) : (mode === 'scribble-mode' && !expanded && !isHovered) ? (
           <img 
             src={scribbleIcon} 
             alt="Scribble" 
@@ -88,7 +104,7 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
       </button>
       <div
         style={{
-          height: expanded ? 180 : 0,
+          height: expanded || isHovered ? 180 : 0,
           overflow: 'hidden',
           transition: 'height 0.3s cubic-bezier(.4,0,.2,1)',
           display: 'flex',
@@ -100,9 +116,9 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
         <button
           onClick={handleCommentClick}
           style={{
-            opacity: expanded ? 1 : 0,
-            transform: expanded ? 'scaleY(1)' : 'scaleY(0.8)',
-            pointerEvents: expanded ? 'auto' : 'none',
+            opacity: expanded || isHovered ? 1 : 0,
+            transform: expanded || isHovered ? 'scaleY(1)' : 'scaleY(0.8)',
+            pointerEvents: expanded || isHovered ? 'auto' : 'none',
             transition: 'opacity 0.2s, transform 0.2s',
             background: mode === 'comment-mode' ? '#e0e0e0' : 'none',
             border: 'none',
@@ -124,9 +140,9 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
         <button
           onClick={handleTextboxClick}
           style={{
-            opacity: expanded ? 1 : 0,
-            transform: expanded ? 'scaleY(1)' : 'scaleY(0.8)',
-            pointerEvents: expanded ? 'auto' : 'none',
+            opacity: expanded || isHovered ? 1 : 0,
+            transform: expanded || isHovered ? 'scaleY(1)' : 'scaleY(0.8)',
+            pointerEvents: expanded || isHovered ? 'auto' : 'none',
             transition: 'opacity 0.2s, transform 0.2s',
             background: mode === 'textbox-mode' ? '#e0e0e0' : 'none',
             border: 'none',
@@ -148,9 +164,9 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
         <button
           onClick={handleScribbleClick}
           style={{
-            opacity: expanded ? 1 : 0,
-            transform: expanded ? 'scaleY(1)' : 'scaleY(0.8)',
-            pointerEvents: expanded ? 'auto' : 'none',
+            opacity: expanded || isHovered ? 1 : 0,
+            transform: expanded || isHovered ? 'scaleY(1)' : 'scaleY(0.8)',
+            pointerEvents: expanded || isHovered ? 'auto' : 'none',
             transition: 'opacity 0.2s, transform 0.2s',
             background: mode === 'scribble-mode' ? '#e0e0e0' : 'none',
             border: 'none',
