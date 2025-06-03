@@ -326,7 +326,7 @@ function App() {
           
           // Restore drawing data using MutationObserver
           if (data.drawingData) {
-            const observer = new MutationObserver((mutations, obs) => {
+            const observer = new MutationObserver((_, obs) => {
               // Check if all drawing blocks are rendered
               const drawingBlocks = editor.document.filter(block => block.type === 'drawing');
               console.log('Checking for drawing blocks to restore:', drawingBlocks.length);
