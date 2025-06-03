@@ -163,21 +163,118 @@ function App() {
     return mode === modeToCheck;
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     // Get all drawing blocks and their canvas data
     const drawingBlocks = editor.document.filter(block => block.type === 'drawing');
+    console.log('Found drawing blocks:', drawingBlocks.length);
+    console.log('Drawing blocks details:', drawingBlocks.map(block => ({
+      id: block.id,
+      type: block.type,
+      props: block.props
+    })));
+
+    // Debug DOM structure
+    const editorElement = document.querySelector('.blocknote-editor');
+    console.log('Editor element found:', !!editorElement);
+    if (editorElement) {
+      // Find all block containers
+      const allBlockElements = editorElement.querySelectorAll('.bn-block[data-id]');
+      console.log('All block elements found:', allBlockElements.length);
+      allBlockElements.forEach(el => {
+        console.log('Block element:', {
+          id: el.getAttribute('data-id'),
+          type: el.querySelector('.bn-block-content')?.getAttribute('data-content-type'),
+          html: el.outerHTML
+        });
+      });
+    }
+
+    // Wait for blocks to be rendered
+    const waitForBlocks = () => {
+      return new Promise<void>((resolve) => {
+        const checkBlocks = () => {
+          const allBlocksRendered = drawingBlocks.every(block => {
+            // Find the block container
+            const blockElement = editorElement?.querySelector(`.bn-block[data-id="${block.id}"]`);
+            // Find the canvas within the block's content
+            const canvas = blockElement?.querySelector('canvas');
+            const isRendered = blockElement && canvas;
+            if (!isRendered) {
+              console.log('Block not rendered:', {
+                blockId: block.id,
+                blockElementFound: !!blockElement,
+                canvasFound: !!canvas
+              });
+            }
+            return isRendered;
+          });
+
+          if (allBlocksRendered) {
+            resolve();
+          } else {
+            setTimeout(checkBlocks, 100);
+          }
+        };
+        checkBlocks();
+      });
+    };
+
+    // Wait for blocks to be rendered (with a timeout)
+    try {
+      await Promise.race([
+        waitForBlocks(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+      ]);
+    } catch (error) {
+      console.error('Timeout waiting for blocks to render');
+    }
+
     const drawingData = drawingBlocks.map(block => {
-      // Find the canvas element within the block's container
-      const blockElement = document.querySelector(`[data-block-id="${block.id}"]`);
+      // Find the block container
+      const blockElement = editorElement?.querySelector(`.bn-block[data-id="${block.id}"]`);
+      console.log('Block element found:', !!blockElement, 'for block ID:', block.id);
+      console.log('Block element HTML:', blockElement?.outerHTML);
+      
       const canvas = blockElement?.querySelector('canvas') as HTMLCanvasElement;
+      console.log('Canvas found:', !!canvas, 'for block ID:', block.id);
+      console.log('Canvas HTML:', canvas?.outerHTML);
+      
       if (!canvas) return null;
 
       // Ensure the canvas is properly initialized
       const ctx = canvas.getContext('2d');
+      console.log('Canvas context found:', !!ctx, 'for block ID:', block.id);
+      
       if (!ctx) return null;
 
       // Get the raw pixel data
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      console.log('ImageData dimensions:', {
+        width: canvas.width,
+        height: canvas.height,
+        dataLength: imageData.data.length
+      }, 'for block ID:', block.id);
+
+      // Verify the drawing content
+      const pixelData = imageData.data;
+      let nonTransparentPixels = 0;
+      let totalPixels = pixelData.length / 4; // Each pixel has 4 values (RGBA)
+      
+      // Count non-transparent pixels (where alpha > 0)
+      for (let i = 3; i < pixelData.length; i += 4) {
+        if (pixelData[i] > 0) {
+          nonTransparentPixels++;
+        }
+      }
+      
+      console.log('Drawing content verification:', {
+        totalPixels,
+        nonTransparentPixels,
+        percentageDrawn: (nonTransparentPixels / totalPixels * 100).toFixed(2) + '%',
+        // Sample some pixel values to verify content
+        samplePixels: Array.from(pixelData.slice(0, 20)) // First 5 pixels (20 values)
+      });
+
       return {
         blockId: block.id,
         width: canvas.width,
@@ -185,6 +282,8 @@ function App() {
         pixelData: Array.from(imageData.data)
       };
     }).filter(Boolean);
+
+    console.log('Final drawing data to export:', drawingData);
 
     const data = {
       blocks: editor.document,
@@ -210,35 +309,105 @@ function App() {
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target?.result as string);
+        console.log('Imported data:', {
+          blocks: data.blocks?.length,
+          drawingData: data.drawingData?.length,
+          firstDrawingData: data.drawingData?.[0] ? {
+            blockId: data.drawingData[0].blockId,
+            width: data.drawingData[0].width,
+            height: data.drawingData[0].height,
+            pixelDataLength: data.drawingData[0].pixelData.length,
+            samplePixels: data.drawingData[0].pixelData.slice(0, 20) // First 5 pixels
+          } : null
+        });
+
         if (data.blocks) {
           editor.replaceBlocks(editor.document, data.blocks);
           
-          // Restore drawing data after a short delay to ensure blocks are rendered
+          // Restore drawing data using MutationObserver
           if (data.drawingData) {
-            setTimeout(() => {
-              data.drawingData.forEach((drawing: { blockId: string; width: number; height: number; pixelData: number[] }) => {
-                const blockElement = document.querySelector(`[data-block-id="${drawing.blockId}"]`);
+            const observer = new MutationObserver((mutations, obs) => {
+              // Check if all drawing blocks are rendered
+              const drawingBlocks = editor.document.filter(block => block.type === 'drawing');
+              console.log('Checking for drawing blocks to restore:', drawingBlocks.length);
+              
+              const renderedBlocks = drawingBlocks.every(block => {
+                const blockElement = document.querySelector(`.bn-block[data-id="${block.id}"]`);
                 const canvas = blockElement?.querySelector('canvas') as HTMLCanvasElement;
-                if (canvas) {
-                  // Set canvas dimensions
-                  canvas.width = drawing.width;
-                  canvas.height = drawing.height;
-                  
-                  const ctx = canvas.getContext('2d');
-                  if (!ctx) return;
-
-                  // Create ImageData from the saved pixel data
-                  const imageData = new ImageData(
-                    new Uint8ClampedArray(drawing.pixelData),
-                    drawing.width,
-                    drawing.height
-                  );
-
-                  // Put the image data back on the canvas
-                  ctx.putImageData(imageData, 0, 0);
+                const isRendered = blockElement && canvas;
+                
+                if (!isRendered) {
+                  console.log('Block not yet rendered:', {
+                    blockId: block.id,
+                    blockElementFound: !!blockElement,
+                    canvasFound: !!canvas
+                  });
                 }
+                
+                return isRendered;
               });
-            }, 1000); // Increased delay to ensure blocks are fully rendered and initialized
+
+              if (renderedBlocks) {
+                console.log('All blocks rendered, restoring drawing data');
+                data.drawingData.forEach((drawing: { blockId: string; width: number; height: number; pixelData: number[] }) => {
+                  const blockElement = document.querySelector(`.bn-block[data-id="${drawing.blockId}"]`);
+                  const canvas = blockElement?.querySelector('canvas') as HTMLCanvasElement;
+                  if (canvas) {
+                    console.log('Restoring drawing for block:', {
+                      blockId: drawing.blockId,
+                      width: drawing.width,
+                      height: drawing.height,
+                      pixelDataLength: drawing.pixelData.length
+                    });
+
+                    // Set canvas dimensions
+                    canvas.width = drawing.width;
+                    canvas.height = drawing.height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                      console.error('Failed to get canvas context');
+                      return;
+                    }
+
+                    // Create ImageData from the saved pixel data
+                    const imageData = new ImageData(
+                      new Uint8ClampedArray(drawing.pixelData),
+                      drawing.width,
+                      drawing.height
+                    );
+
+                    // Put the image data back on the canvas
+                    ctx.putImageData(imageData, 0, 0);
+
+                    // Verify the restoration
+                    const restoredImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    let nonTransparentPixels = 0;
+                    for (let i = 3; i < restoredImageData.data.length; i += 4) {
+                      if (restoredImageData.data[i] > 0) {
+                        nonTransparentPixels++;
+                      }
+                    }
+                    console.log('Restoration verification:', {
+                      totalPixels: restoredImageData.data.length / 4,
+                      nonTransparentPixels,
+                      percentageDrawn: (nonTransparentPixels / (restoredImageData.data.length / 4) * 100).toFixed(2) + '%'
+                    });
+                  } else {
+                    console.error('Canvas not found for block:', drawing.blockId);
+                  }
+                });
+                
+                // Disconnect the observer once we're done
+                obs.disconnect();
+              }
+            });
+
+            // Start observing the document for changes
+            observer.observe(document.body, {
+              childList: true,
+              subtree: true
+            });
           }
         }
         if (data.annotations) {
