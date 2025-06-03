@@ -4,8 +4,7 @@ import commentIcon from './assets/comment-icon.png';
 import textboxIcon from './assets/textbox-icon.png';
 import commentIconWhite from './assets/comment-white.png';
 import textboxIconWhite from './assets/textbox-white.png';
-import scribbleIcon from './assets/scribble-icon.svg';
-import scribbleIconWhite from './assets/scribble-white.svg';
+import scribbleIcon from './assets/scribble-icon.png';
 
 interface OverlayToolbarProps {
   mode: 'comment-mode' | 'textbox-mode' | 'scribble-mode' | 'no-annotation-mode';
@@ -74,7 +73,15 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
         ) : (mode === 'textbox-mode' && !expanded) ? (
           <img src={textboxIconWhite} alt="Textbox" style={{ height: 38, objectFit: 'contain' }} />
         ) : (mode === 'scribble-mode' && !expanded) ? (
-          <img src={scribbleIconWhite} alt="Scribble" style={{ height: 28, objectFit: 'contain' }} />
+          <img 
+            src={scribbleIcon} 
+            alt="Scribble" 
+            style={{ 
+              height: 28, 
+              objectFit: 'contain',
+              filter: 'invert(1)'
+            }} 
+          />
         ) : (
           <img src={annotateIcon} alt="Annotate" style={{ height: 28, objectFit: 'contain' }} />
         )}
@@ -160,7 +167,15 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
           }}
           aria-label="Scribble mode"
         >
-          <img src={scribbleIcon} alt="Scribble" style={{ height: 28, objectFit: 'contain' }} />
+          <img 
+            src={scribbleIcon} 
+            alt="Scribble" 
+            style={{ 
+              height: 28, 
+              objectFit: 'contain',
+              filter: mode === 'scribble-mode' ? 'brightness(0) saturate(100%) invert(37%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(90%) contrast(90%)' : 'none'
+            }} 
+          />
         </button>
       </div>
     </div>
