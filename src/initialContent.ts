@@ -28,7 +28,7 @@ export const initialContent = [
     "content": [
       {
         "type": "text",
-        "text": "You can write text, make drawings, and add annotations to your notes.",
+        "text": "You can write text, make drawings, and add annotations to your notes. :)",
         "styles": {}
       }
     ],
