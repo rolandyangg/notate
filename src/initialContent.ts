@@ -383,6 +383,24 @@ export const initialContent = [
             "children": []
           }
         ]
+      },
+      {
+        "id": "937f11d0-9b0c-4982-8df6-28a08ca5d66e",
+        "type": "checkListItem",
+        "props": {
+          "textColor": "default",
+          "backgroundColor": "default",
+          "textAlignment": "left",
+          "checked": false
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Press \"escape\" to exit",
+            "styles": {}
+          }
+        ],
+        "children": []
       }
     ]
   },
