@@ -33,15 +33,45 @@ export const Tutorial: React.FC<TutorialProps> = ({ onDismiss }) => {
             <li>Hold <kbd>Space</kbd> while drawing to pan the canvas</li>
             <li>Use the toolbar to select different tools:
               <ul>
-                <li>🖊️ Pen - For regular drawing</li>
-                <li>⬜ Rectangle - Click and drag to draw shapes</li>
-                <li>🔄 Undo/Redo - Fix mistakes easily</li>
-                <li>🎨 Color picker - Choose your color</li>
+                <li>🖊️ Pen - For freehand drawing</li>
+                <li>➖ Line - Draw straight lines</li>
+                <li>➡️ Arrow - Add directional arrows</li>
+                <li>⬜ Rectangle - Draw rectangular shapes</li>
+                <li>⭕ Circle - Draw circular shapes</li>
+                <li>📝 Text - Add text anywhere on canvas</li>
               </ul>
             </li>
-            <li>Scroll to zoom in/out of your drawing</li>
-            <li>Click outside the canvas to continue writing</li>
+            <li>Customize your tools:
+              <ul>
+                <li>Size slider - Adjust brush/text size</li>
+                <li>🎨 Color picker - Choose any color</li>
+                <li>↩️ Undo/Redo - Fix mistakes easily</li>
+                <li>🧹 Clear - Reset the canvas</li>
+              </ul>
+            </li>
+            <li>Drag the resize handle in the bottom-right to adjust canvas size</li>
           </ol>
+        </div>
+      )
+    },
+    {
+      title: "Image Annotation 🖼️",
+      content: (
+        <div>
+          <p>Add and annotate images in your notes:</p>
+          <ol>
+            <li>Type <code>/image</code> to insert an image block</li>
+            <li>Upload an image or paste directly from clipboard</li>
+            <li>Once inserted, you can:
+              <ul>
+                <li>Draw directly on the image</li>
+                <li>Add text annotations</li>
+                <li>Use all drawing tools (pen, shapes, arrows)</li>
+                <li>Resize the image using the handle</li>
+              </ul>
+            </li>
+          </ol>
+          <p><strong>Pro tip:</strong> You can paste images directly from your clipboard anywhere in the document!</p>
         </div>
       )
     },
@@ -54,6 +84,7 @@ export const Tutorial: React.FC<TutorialProps> = ({ onDismiss }) => {
           <ul>
             <li><kbd>Tab</kbd> + <kbd>C</kbd> - Toggle annotation mode</li>
             <li><kbd>Tab</kbd> + <kbd>T</kbd> - Toggle textbox mode</li>
+            <li><kbd>Tab</kbd> + <kbd>S</kbd> - Toggle scribble mode</li>
             <li><kbd>Esc</kbd> - Exit current mode</li>
           </ul>
           <h4>Adding Annotations</h4>
@@ -71,7 +102,13 @@ export const Tutorial: React.FC<TutorialProps> = ({ onDismiss }) => {
             <li>Type your text</li>
             <li>Press Enter or click outside to save</li>
           </ol>
-          <p><strong>Tip:</strong> You can drag both annotations and textboxes to reposition them.</p>
+          <h4>Using Scribble Mode</h4>
+          <ol>
+            <li>Press <kbd>Tab</kbd> + <kbd>S</kbd> or use the toolbar button</li>
+            <li>Draw freely anywhere on the document</li>
+            <li>Press Esc to exit scribble mode</li>
+          </ol>
+          <p><strong>Tip:</strong> You can drag annotations, textboxes, and resize text elements as needed.</p>
         </div>
       )
     },
@@ -81,11 +118,18 @@ export const Tutorial: React.FC<TutorialProps> = ({ onDismiss }) => {
         <div>
           <p>Your work is automatically saved as you type. To share or backup your notes:</p>
           <ol>
-            <li>Click the "Export Notes" button</li>
+            <li>Click the "Export Notes" button in the bottom-right</li>
             <li>Save the JSON file to your computer</li>
             <li>To restore: Click "Import Notes" and select your saved file</li>
           </ol>
-          <p>The export includes all your notes, drawings, annotations, and textboxes!</p>
+          <p>The export includes everything in your document:</p>
+          <ul>
+            <li>✍️ All text content</li>
+            <li>🎨 Drawing canvases</li>
+            <li>🖼️ Images with annotations</li>
+            <li>📝 Annotations and textboxes</li>
+            <li>✏️ Scribbles and markups</li>
+          </ul>
         </div>
       )
     }
@@ -106,6 +150,7 @@ export const Tutorial: React.FC<TutorialProps> = ({ onDismiss }) => {
       maxHeight: '80vh',
       overflow: 'auto',
       zIndex: 2000,
+      fontFamily: "'Inter', sans-serif",
     }}>
       <button
         onClick={onDismiss}
@@ -118,16 +163,25 @@ export const Tutorial: React.FC<TutorialProps> = ({ onDismiss }) => {
           fontSize: '24px',
           cursor: 'pointer',
           color: '#666',
+          fontFamily: "'Inter', sans-serif",
         }}
       >
         ×
       </button>
 
       <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ marginTop: 0 }}>{sections[currentSection].title}</h2>
+        <h2 style={{ 
+          marginTop: 0,
+          fontFamily: "'Inter', sans-serif",
+          fontWeight: 600,
+          fontSize: '24px',
+          color: '#1a1a1a'
+        }}>
+          {sections[currentSection].title}
+        </h2>
         <div style={{
-          fontSize: '16px',
-          lineHeight: '1.5',
+          fontSize: '15px',
+          lineHeight: '1.6',
           color: '#333',
         }}>
           {sections[currentSection].content}
@@ -151,11 +205,18 @@ export const Tutorial: React.FC<TutorialProps> = ({ onDismiss }) => {
             border: 'none',
             borderRadius: '4px',
             cursor: currentSection === 0 ? 'not-allowed' : 'pointer',
+            fontFamily: "'Inter', sans-serif",
+            fontSize: '14px',
+            fontWeight: 500,
           }}
         >
           Previous
         </button>
-        <div style={{ color: '#666' }}>
+        <div style={{ 
+          color: '#666',
+          fontFamily: "'Inter', sans-serif",
+          fontSize: '14px',
+        }}>
           {currentSection + 1} of {sections.length}
         </div>
         <button
@@ -167,6 +228,9 @@ export const Tutorial: React.FC<TutorialProps> = ({ onDismiss }) => {
             border: 'none',
             borderRadius: '4px',
             cursor: 'pointer',
+            fontFamily: "'Inter', sans-serif",
+            fontSize: '14px',
+            fontWeight: 500,
           }}
         >
           {currentSection === sections.length - 1 ? 'Get Started!' : 'Next'}
