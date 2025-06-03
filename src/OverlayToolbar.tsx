@@ -14,6 +14,7 @@ interface OverlayToolbarProps {
 export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode }) => {
   const [expanded, setExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [hoveredButton, setHoveredButton] = useState<string | null>(null);
 
   const handlePencilClick = () => {
     if (expanded) {
@@ -42,6 +43,16 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
 
   const handleScribbleClick = () => {
     setMode(mode === 'scribble-mode' ? 'no-annotation-mode' : 'scribble-mode');
+  };
+
+  const handleButtonMouseEnter = (buttonName: string) => {
+    console.log('handleButtonMouseEnter is called on', buttonName);
+    setHoveredButton(buttonName);
+  };
+
+  const handleButtonMouseLeave = () => {
+    console.log('handleButtonMouseLeave is called');
+    setHoveredButton(null);
   };
 
   return (
@@ -105,16 +116,19 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
       <div
         style={{
           height: expanded || isHovered ? 180 : 0,
-          overflow: 'hidden',
+          overflow: 'visible', // Changed from 'hidden' to 'visible' to show tooltips
           transition: 'height 0.3s cubic-bezier(.4,0,.2,1)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: 10,
+          position: 'relative',
         }}
       >
         <button
           onClick={handleCommentClick}
+          onMouseEnter={() => handleButtonMouseEnter('comment')}
+          onMouseLeave={handleButtonMouseLeave}
           style={{
             opacity: expanded || isHovered ? 1 : 0,
             transform: expanded || isHovered ? 'scaleY(1)' : 'scaleY(0.8)',
@@ -132,13 +146,48 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            position: 'relative', // Added for tooltip positioning
           }}
           aria-label="Comment mode"
         >
           <img src={commentIcon} alt="Comment" style={{ height: 20, objectFit: 'contain' }} />
+          {hoveredButton === 'comment' && (
+            <div 
+              style={{
+                position: 'absolute',
+                right: '60px', // Changed from left: '-120px' to right: '60px'
+                top: '50%',
+                transform: 'translateY(-50%)', // Center vertically
+                padding: '6px 12px',
+                background: '#5A5A5A',
+                color: 'white',
+                borderRadius: '6px',
+                fontSize: '12px',
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                zIndex: 1300, // Increased z-index
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              }}>
+              Click and drag to add comment <br /> Tab+C
+              {/* Arrow pointing to the button */}
+              <div style={{
+                position: 'absolute',
+                left: '100%',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 0,
+                height: 0,
+                borderLeft: '6px solid #5A5A5A',
+                borderTop: '6px solid transparent',
+                borderBottom: '6px solid transparent',
+              }} />
+            </div>
+          )}
         </button>
         <button
           onClick={handleTextboxClick}
+          onMouseEnter={() => handleButtonMouseEnter('textbox')}
+          onMouseLeave={handleButtonMouseLeave}
           style={{
             opacity: expanded || isHovered ? 1 : 0,
             transform: expanded || isHovered ? 'scaleY(1)' : 'scaleY(0.8)',
@@ -156,13 +205,48 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            position: 'relative', // Added for tooltip positioning
           }}
           aria-label="Textbox mode"
         >
           <img src={textboxIcon} alt="Textbox" style={{ height: 38, objectFit: 'contain' }} />
+          {hoveredButton === 'textbox' && (
+            <div 
+              style={{
+                position: 'absolute',
+                right: '60px', // Changed from left: '-120px' to right: '60px'
+                top: '50%',
+                transform: 'translateY(-50%)', // Center vertically
+                padding: '6px 12px',
+                background: '#5A5A5A',
+                color: 'white',
+                borderRadius: '6px',
+                fontSize: '12px',
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                zIndex: 1300, // Increased z-index
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              }}>
+              Click to add textbox <br /> Tab+T
+              {/* Arrow pointing to the button */}
+              <div style={{
+                position: 'absolute',
+                left: '100%',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 0,
+                height: 0,
+                borderLeft: '6px solid #5A5A5A',
+                borderTop: '6px solid transparent',
+                borderBottom: '6px solid transparent',
+              }} />
+            </div>
+          )}
         </button>
         <button
           onClick={handleScribbleClick}
+          onMouseEnter={() => handleButtonMouseEnter('scribble')}
+          onMouseLeave={handleButtonMouseLeave}
           style={{
             opacity: expanded || isHovered ? 1 : 0,
             transform: expanded || isHovered ? 'scaleY(1)' : 'scaleY(0.8)',
@@ -180,6 +264,7 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            position: 'relative', // Added for tooltip positioning
           }}
           aria-label="Scribble mode"
         >
@@ -192,8 +277,40 @@ export const OverlayToolbar: React.FC<OverlayToolbarProps> = ({ mode, setMode })
               filter: mode === 'scribble-mode' ? 'brightness(0) saturate(100%) invert(37%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(90%) contrast(90%)' : 'none'
             }} 
           />
+          {hoveredButton === 'scribble' && (
+            <div 
+              style={{
+                position: 'absolute',
+                right: '60px', // Changed from left: '-120px' to right: '60px'
+                top: '50%',
+                transform: 'translateY(-50%)', // Center vertically
+                padding: '6px 12px',
+                background: '#5A5A5A',
+                color: 'white',
+                borderRadius: '6px',
+                fontSize: '12px',
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                zIndex: 1300, // Increased z-index
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              }}>
+              Add scribble <br /> Tab+S
+              {/* Arrow pointing to the button */}
+              <div style={{
+                position: 'absolute',
+                left: '100%',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 0,
+                height: 0,
+                borderLeft: '6px solid #5A5A5A',
+                borderTop: '6px solid transparent',
+                borderBottom: '6px solid transparent',
+              }} />
+            </div>
+          )}
         </button>
       </div>
     </div>
   );
-}; 
+};
