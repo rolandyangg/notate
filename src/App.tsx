@@ -23,6 +23,7 @@ import { useState, useRef, useEffect } from "react";
 import { TextboxOverlay } from "./TextboxOverlay";
 import { OverlayToolbar } from "./OverlayToolbar";
 import { ScribbleOverlay } from "./ScribbleOverlay";
+import { initialContent } from "./initialContent";
 
 // Custom "Drawing Block" menu item
 const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
@@ -70,17 +71,7 @@ const schema = BlockNoteSchema.create({
 function App() {
   const editor = useCreateBlockNote({ 
     schema,
-    initialContent: [
-      {
-        type: "heading",
-        content: "[Document Title]",
-        props: { level: 1 }
-      },
-      {
-        type: "paragraph",
-        content: "Your notes here."
-      }
-    ]
+    initialContent: initialContent as any
   });
   const [annotations, setAnnotations] = useState<any[]>([]);
   const [textboxes, setTextboxes] = useState<any[]>([]);
