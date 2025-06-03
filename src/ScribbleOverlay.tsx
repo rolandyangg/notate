@@ -231,11 +231,12 @@ export const ScribbleOverlay = ({
   return (
     <div
       style={{
-        position: 'fixed',
+        position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
+        minHeight: '100vh',
         zIndex: 999,
         cursor: isScribbleMode ? (isEraser ? 'none' : 'crosshair') : 'default',
         pointerEvents: isScribbleMode ? 'auto' : 'none',
