@@ -389,11 +389,21 @@ function App() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
+    // Show success message
+    alert('Notes exported successfully!');
   };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    // Show confirmation dialog
+    if (!window.confirm('Importing a file will replace all existing content. Are you sure you want to continue?')) {
+      // Reset the file input
+      event.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -581,6 +591,9 @@ function App() {
             
             // Disconnect the observer once we're done
             obs.disconnect();
+
+            // Show success message
+            alert('Notes imported successfully!');
           });
 
           // Start observing the document for changes
