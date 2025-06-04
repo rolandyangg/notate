@@ -9,6 +9,9 @@ import {
     type: "imageUpload",
     propSchema: {
       src: { default: "" },
+      canvasData: { default: "" },
+      width: { default: 800 },
+      height: { default: 400 }
     },
     content: "none" as const,
   };
@@ -38,6 +41,7 @@ import {
                 props: {
                   ...block.props,
                   src: reader.result,
+                  canvasData: "", // Reset canvas data for new image
                 }
               });
             }
@@ -67,6 +71,7 @@ import {
             props: {
               ...block.props,
               src: reader.result,
+              canvasData: "", // Reset canvas data for new image
             },
           }); 
         }
@@ -81,66 +86,70 @@ import {
     const uploaded = Boolean(block.props.src);
   
     return uploaded ? (
-        <DrawingCanvas backgroundImage={block.props.src} />
+        <DrawingCanvas 
+          backgroundImage={block.props.src} 
+          block={block} 
+          editor={editor} 
+        />
       ) : (
-<div
-  ref={containerRef}
-  contentEditable={false}
-  style={{
-    fontFamily: "'Inter', sans-serif",
-    position: "relative",
-    display: "flex",
-    justifyContent: "flex-start",
-    alignItems: "center",
-    flexDirection: "column",
-    gap: 10,
-    width: "100%",
-    maxWidth: 400,
-    margin: "20px",
-    padding: 20,
-    borderRadius: 12,
-    border: "1px solid #e0e0e0",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
-    backgroundColor: "#ffffff",
-    textAlign: "left",
-    transition: "box-shadow 0.2s ease-in-out",
-  }}
->
-  <div style={{ textAlign: 'center', marginBottom: '10px', color: '#666' }}>
-    Click to upload or paste an image from clipboard
-  </div>
-  <button
-    onClick={handleUploadClick}
-    style={{
-      fontFamily: "'Inter', sans-serif",
-      fontSize: 14,
-      fontWeight: 500,
-      backgroundColor: "#fff",
-      color: "#333",
-      border: "1px solid #ccc",
-      borderRadius: 8,
-      padding: "10px 16px",
-      cursor: "pointer",
-      transition: "background-color 0.2s ease-in-out",
-    }}
-    onMouseEnter={(e) =>
-      (e.currentTarget.style.backgroundColor = "#f2f2f2")
-    }
-    onMouseLeave={(e) =>
-      (e.currentTarget.style.backgroundColor = "#fff")
-    }
-  >
-    Upload Image
-  </button>
+        <div
+          ref={containerRef}
+          contentEditable={false}
+          style={{
+            fontFamily: "'Inter', sans-serif",
+            position: "relative",
+            display: "flex",
+            justifyContent: "flex-start",
+            alignItems: "center",
+            flexDirection: "column",
+            gap: 10,
+            width: "100%",
+            maxWidth: 400,
+            margin: "20px",
+            padding: 20,
+            borderRadius: 12,
+            border: "1px solid #e0e0e0",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+            backgroundColor: "#ffffff",
+            textAlign: "left",
+            transition: "box-shadow 0.2s ease-in-out",
+          }}
+        >
+          <div style={{ textAlign: 'center', marginBottom: '10px', color: '#666' }}>
+            Click to upload or paste an image from clipboard
+          </div>
+          <button
+            onClick={handleUploadClick}
+            style={{
+              fontFamily: "'Inter', sans-serif",
+              fontSize: 14,
+              fontWeight: 500,
+              backgroundColor: "#fff",
+              color: "#333",
+              border: "1px solid #ccc",
+              borderRadius: 8,
+              padding: "10px 16px",
+              cursor: "pointer",
+              transition: "background-color 0.2s ease-in-out",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = "#f2f2f2")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = "#fff")
+            }
+          >
+            Upload Image
+          </button>
 
-  <input
-    ref={inputRef}
-    type="file"
-    accept="image/*"
-    onChange={handleFileChange}
-    style={{ display: "none" }}
-  />
-</div>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            style={{ display: "none" }}
+          />
+        </div>
       );
   };
   

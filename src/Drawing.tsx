@@ -19,7 +19,12 @@ import {
 
 const drawingBlockSpec = {
   type: "drawing",
-  propSchema: {},
+  propSchema: {
+    canvasData: { default: "" },
+    width: { default: 800 },
+    height: { default: 400 },
+    backgroundImage: { default: "" }
+  },
   content: "none" as const,
 };
 
@@ -34,7 +39,7 @@ interface TextElement {
   isSelected: boolean;
 }
 
-export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string }) => {
+export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundImage?: string, block?: any, editor?: any }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const roughCanvasRef = useRef<ReturnType<typeof rough.canvas> | null>(null);
     const isDrawing = useRef(false);
@@ -50,7 +55,10 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
 
   
     const [isSpaceHeld, setIsSpaceHeld] = useState(false);
-    const [size, setSize] = useState({ width: 800, height: 400 });
+    const [size, setSize] = useState(() => ({
+      width: block?.props?.width || 800,
+      height: block?.props?.height || 400
+    }));
     const [brushColor, setBrushColor] = useState("#333");
     const [brushSize, setBrushSize] = useState(2);
     const [tool, setTool] = useState("pen");
@@ -71,6 +79,9 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
     const dragStart = useRef<{x: number; y: number}>({ x: 0, y: 0 });
     const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
     const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+
+    // Add ref for background image
+    const backgroundImageRef = useRef<string | null>(null);
 
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
@@ -96,43 +107,108 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
           roughCanvasRef.current = rough.canvas(canvasRef.current);
           const ctx = canvasRef.current.getContext("2d")!;
       
-          if (backgroundImage) {
-            setBrushColor("#ff0000"); // ✅ Set brush to red
-      
-            const img = new Image();
-            img.onload = () => {
-              const newSize = {
-                width: img.naturalWidth,
-                height: img.naturalHeight,
-              };
-              setSize(newSize);
-              setTimeout(() => {
-                ctx.clearRect(0, 0, newSize.width, newSize.height);
-                ctx.drawImage(img, 0, 0, newSize.width, newSize.height);
-                saveState();
-              }, 0);
-            };
-            img.src = backgroundImage;
-          } else {
-            saveState();
-          }
+          const initializeCanvas = async () => {
+            // If there's a new background image, use it
+            if (backgroundImage && backgroundImage !== block?.props?.backgroundImage) {
+              setBrushColor("#ff0000");
+              const img = new Image();
+              await new Promise((resolve) => {
+                img.onload = () => {
+                  const newSize = {
+                    width: img.naturalWidth,
+                    height: img.naturalHeight,
+                  };
+                  setSize(newSize);
+                  
+                  // Store background image reference
+                  backgroundImageRef.current = backgroundImage;
+                  
+                  // Update block props with new size and background image
+                  if (editor && block) {
+                    editor.updateBlock(block, {
+                      props: {
+                        ...block.props,
+                        width: newSize.width,
+                        height: newSize.height,
+                        backgroundImage: backgroundImage,
+                        canvasData: "" // Reset canvas data when new background is set
+                      }
+                    });
+                  }
+                  
+                  ctx.clearRect(0, 0, newSize.width, newSize.height);
+                  ctx.drawImage(img, 0, 0, newSize.width, newSize.height);
+                  saveState();
+                  resolve(null);
+                };
+                img.src = backgroundImage;
+              });
+            }
+            // If there's existing canvas data, restore it
+            else if (block?.props?.canvasData) {
+              // Store background image reference
+              backgroundImageRef.current = block.props.backgroundImage || null;
+              
+              const img = new Image();
+              await new Promise((resolve) => {
+                img.onload = () => {
+                  ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
+                  ctx.drawImage(img, 0, 0);
+                  lastSavedSnapshot.current = block.props.canvasData;
+                  undoStack.current = [block.props.canvasData];
+                  resolve(null);
+                };
+                img.src = block.props.canvasData;
+              });
+            }
+            // If there's a stored background image but no canvas data, restore the background
+            else if (block?.props?.backgroundImage) {
+              // Store background image reference
+              backgroundImageRef.current = block.props.backgroundImage;
+              
+              const img = new Image();
+              await new Promise((resolve) => {
+                img.onload = () => {
+                  ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
+                  ctx.drawImage(img, 0, 0);
+                  saveState();
+                  resolve(null);
+                };
+                img.src = block.props.backgroundImage;
+              });
+            }
+          };
+
+          initializeCanvas();
         }
-      }, [backgroundImage]);
+      }, [backgroundImage, block?.id]);
+      
+  
+    // Add effect to restore canvas data from props
+    useEffect(() => {
+      if (canvasRef.current && block?.props?.canvasData) {
+        const ctx = canvasRef.current.getContext("2d")!;
+        const img = new Image();
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
+          ctx.drawImage(img, 0, 0);
+          saveState();
+        };
+        img.src = block.props.canvasData;
+      }
+    }, [block?.props?.canvasData]);
       
   
     const saveState = () => {
       if (!canvasRef.current) return;
 
-      // Always render text to temporary canvas to ensure proper state saving
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = canvasRef.current.width;
       tempCanvas.height = canvasRef.current.height;
       const tempCtx = tempCanvas.getContext('2d')!;
       
-      // Copy current canvas state
       tempCtx.drawImage(canvasRef.current, 0, 0);
       
-      // If using text tool, render current text elements
       if (tool === 'text' && textElements.length > 0) {
         textElements.forEach(element => {
           tempCtx.font = `${element.fontSize}px Arial`;
@@ -142,10 +218,23 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       }
       
       const dataURL = tempCanvas.toDataURL();
-      if (dataURL && undoStack.current[undoStack.current.length - 1] !== dataURL) {
+      if (dataURL && lastSavedSnapshot.current !== dataURL) {
         undoStack.current.push(dataURL);
         redoStack.current = [];
         lastSavedSnapshot.current = dataURL;
+
+        // Update block props with canvas data, size, and preserve background image
+        if (editor && block) {
+          editor.updateBlock(block, {
+            props: {
+              ...block.props,
+              canvasData: dataURL,
+              width: size.width,
+              height: size.height,
+              backgroundImage: block.props.backgroundImage || backgroundImage || ""
+            }
+          });
+        }
       }
     };
   
@@ -474,38 +563,104 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
   
     const handleResizeMouseDown = (e: React.MouseEvent) => {
       e.preventDefault();
-      e.stopPropagation(); // Stop event propagation
+      e.stopPropagation();
+      
       const canvas = canvasRef.current!;
-      const imageDataURL = canvas.toDataURL();
-      const aspectRatio = size.width / size.height;
+      const ctx = canvas.getContext('2d')!;
+      
+      // Store initial state
+      const initialState = canvas.toDataURL();
+      const initialWidth = size.width;
+      const initialHeight = size.height;
+      const aspectRatio = initialWidth / initialHeight;
       const startX = e.clientX;
       const startY = e.clientY;
-      const startWidth = size.width;
 
-      // Create handlers outside of the resize div's scope
-      const onMouseMove = (e: MouseEvent) => {
-        const delta = Math.max(e.clientX - startX, e.clientY - startY);
-        const newWidth = Math.max(100, startWidth + delta);
-        const newHeight = newWidth / aspectRatio;
+      let resizeTimeout: NodeJS.Timeout | null = null;
+      let lastWidth = initialWidth;
+      let lastHeight = initialHeight;
 
-        setSize(() => {
-          setTimeout(() => {
-            const ctx = canvas.getContext("2d")!;
-            const img = new Image();
-            img.onload = () => {
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(img, 0, 0, newWidth, newHeight);
+      const redrawCanvas = async (width: number, height: number) => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // First draw background if exists
+        if (backgroundImageRef.current) {
+          await new Promise<void>((resolve) => {
+            const bgImg = new Image();
+            bgImg.onload = () => {
+              ctx.drawImage(bgImg, 0, 0, width, height);
+              resolve();
             };
-            img.src = imageDataURL;
-          }, 0);
-          return { width: newWidth, height: newHeight };
+            bgImg.src = backgroundImageRef.current;
+          });
+        }
+        
+        // Then draw canvas state on top
+        const img = new Image();
+        await new Promise<void>((resolve) => {
+          img.onload = () => {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve();
+          };
+          img.src = initialState;
         });
       };
 
-      const onMouseUp = () => {
+      const onMouseMove = (e: MouseEvent) => {
+        const delta = Math.max(e.clientX - startX, e.clientY - startY);
+        const newWidth = Math.max(100, initialWidth + delta);
+        const newHeight = newWidth / aspectRatio;
+
+        // Only update if size has changed significantly (prevent micro-updates)
+        if (Math.abs(newWidth - lastWidth) > 1 || Math.abs(newHeight - lastHeight) > 1) {
+          lastWidth = newWidth;
+          lastHeight = newHeight;
+
+          // Update size state
+          setSize({ width: newWidth, height: newHeight });
+
+          // Clear any pending resize operation
+          if (resizeTimeout) {
+            clearTimeout(resizeTimeout);
+          }
+
+          // Schedule a new resize operation
+          resizeTimeout = setTimeout(() => {
+            redrawCanvas(newWidth, newHeight);
+          }, 0);
+        }
+      };
+
+      const onMouseUp = async () => {
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
-        saveState(); // Save state after resize
+
+        // Clear any pending resize operation
+        if (resizeTimeout) {
+          clearTimeout(resizeTimeout);
+        }
+
+        // Final resize and save
+        await redrawCanvas(lastWidth, lastHeight);
+        
+        // Only save state and update block props after the final resize
+        if (editor && block) {
+          const finalState = canvas.toDataURL();
+          editor.updateBlock(block, {
+            props: {
+              ...block.props,
+              canvasData: finalState,
+              width: lastWidth,
+              height: lastHeight,
+              backgroundImage: backgroundImageRef.current !== null ? backgroundImageRef.current : ""
+            }
+          });
+          
+          // Update the undo stack
+          undoStack.current.push(finalState);
+          redoStack.current = [];
+          lastSavedSnapshot.current = finalState;
+        }
       };
 
       document.addEventListener("mousemove", onMouseMove);
@@ -1368,7 +1523,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
 };
 
 const drawingBlockImplementation: ReactCustomBlockImplementation<typeof drawingBlockSpec, any, any> = {
-  render: () => <DrawingCanvas />,
+  render: ({ block, editor }) => <DrawingCanvas block={block} editor={editor} />,
 };
 
 export const Drawing = createReactBlockSpec(drawingBlockSpec, drawingBlockImplementation);
