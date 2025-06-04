@@ -34,6 +34,7 @@ export const Tutorial: React.FC<TutorialProps> = ({ onDismiss }) => {
             <li>Use the toolbar to select different tools:
               <ul>
                 <li>🖊️ Pen - For freehand drawing</li>
+                <li>🧹 Eraser - Erase parts of your drawing</li>
                 <li>➖ Line - Draw straight lines</li>
                 <li>➡️ Arrow - Add directional arrows</li>
                 <li>⬜ Rectangle - Draw rectangular shapes</li>
@@ -46,7 +47,7 @@ export const Tutorial: React.FC<TutorialProps> = ({ onDismiss }) => {
                 <li>Size slider - Adjust brush/text size</li>
                 <li>🎨 Color picker - Choose any color</li>
                 <li>↩️ Undo/Redo - Fix mistakes easily</li>
-                <li>🧹 Clear - Reset the canvas</li>
+                <li>🗑️ Clear - Reset the entire canvas</li>
               </ul>
             </li>
             <li>Drag the resize handle in the bottom-right to adjust canvas size</li>

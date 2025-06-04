@@ -13,7 +13,8 @@ import {
   FaFont,
   FaUndo,
   FaRedo,
-  FaEraser
+  FaEraser,
+  FaTrash
 } from "react-icons/fa";
 
 const drawingBlockSpec = {
@@ -56,6 +57,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
     const [isHovered, setIsHovered] = useState(false);
     const [isCanvasFocused, setIsCanvasFocused] = useState(false);
     const [fontSize, setFontSize] = useState(16);
+    const [isErasing, setIsErasing] = useState(false);
 
   
     const undoStack = useRef<string[]>([]);
@@ -68,6 +70,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
     const [isResizing, setIsResizing] = useState(false);
     const dragStart = useRef<{x: number; y: number}>({ x: 0, y: 0 });
     const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
+    const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
 
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
@@ -244,6 +247,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
         window.removeEventListener("keyup", handleKeyUp);
         setIsSpaceHeld(false);
         stopDrawing();
+        setMousePosition(null);
       };
   
       canvas.addEventListener("mouseenter", handleMouseEnter);
@@ -322,11 +326,21 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       currentX.current = x;
       currentY.current = y;
 
-      if (tool === 'pen') {
-        rc.line(startX.current, startY.current, x, y, {
-          stroke: brushColor,
-          strokeWidth: brushSize,
-        });
+      if (tool === 'pen' || tool === 'eraser') {
+        if (tool === 'eraser') {
+          // Eraser functionality
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x, y, brushSize * 2, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.clearRect(x - brushSize * 2, y - brushSize * 2, brushSize * 4, brushSize * 4);
+          ctx.restore();
+        } else {
+          rc.line(startX.current, startY.current, x, y, {
+            stroke: brushColor,
+            strokeWidth: brushSize,
+          });
+        }
         startX.current = x;
         startY.current = y;
         didDrawInStroke.current = true;
@@ -415,6 +429,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       if ((tool === 'line' || tool === 'rect' || tool === 'ellipse' || tool === 'arrow') || (tool === 'pen' && didDrawInStroke.current)) {
         saveState();
       }
+      setMousePosition(null);
     };
   
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -425,10 +440,18 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
     };
   
     const handleMouseMove = (e: React.MouseEvent) => {
-      if (tool === 'text') return; // Don't handle drawing moves if using text tool
+      if (tool === 'text') {
+        handleTextMouseMove(e);
+        handleResizeMouseMove(e);
+        return;
+      }
+
       const rect = canvasRef.current!.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+
+      // Update mouse position for eraser outline
+      setMousePosition({ x, y });
 
       // Only start a stroke when spacebar is currently held or mouse is down
       const shouldStartStroke = (isSpaceHeld || isMouseDown.current) && !isDrawing.current;
@@ -816,11 +839,10 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
         height: size.height,
         overflow: "hidden"
       }}
-      onMouseMove={(e) => {
-        if (tool === 'text') {
-          handleTextMouseMove(e);
-          handleResizeMouseMove(e);
-        }
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => {
+        setMousePosition(null);
+        stopDrawing();
       }}
     >
       {/* Text Layer */}
@@ -968,13 +990,30 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
           display: "block", 
           width: "100%", 
           height: "100%",
-          pointerEvents: tool === 'text' ? 'none' : 'auto'
+          pointerEvents: tool === 'text' ? 'none' : 'auto',
+          cursor: tool === 'eraser' ? 'none' : 'default'
         }}
         onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={stopDrawing}
       />
+
+      {/* Eraser cursor overlay */}
+      {tool === 'eraser' && mousePosition && (
+        <div
+          style={{
+            position: 'absolute',
+            left: mousePosition.x - brushSize * 2,
+            top: mousePosition.y - brushSize * 2,
+            width: brushSize * 4,
+            height: brushSize * 4,
+            border: '2px solid #666',
+            borderRadius: '50%',
+            pointerEvents: 'none',
+            transform: 'translate(-1px, -1px)', // Adjust for border width
+            zIndex: 2
+          }}
+        />
+      )}
 
       {/* Modern resize handle */}
       <div
@@ -1084,6 +1123,27 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
               <FaPen size={14} />
             </button>
             <button
+              onClick={() => setTool('eraser')}
+              style={{
+                fontSize: 16,
+                backgroundColor: tool === 'eraser' ? '#e0e0e0' : '#fff',
+                color: '#333',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                flexShrink: 0,
+              }}
+              title="Eraser Tool"
+            >
+              <FaEraser size={14} />
+            </button>
+            <button
               onClick={() => setTool('line')}
               style={{
                 fontSize: 16,
@@ -1190,7 +1250,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
             </button>
           </div>
 
-          {/* Undo/Redo Buttons */}
+          {/* Undo/Redo/Clear Buttons */}
           <div style={{ display: 'flex', gap: 4, borderRight: '1px solid #ddd', paddingRight: 8, flexShrink: 0 }}>
             <button
               onClick={handleUndo}
@@ -1239,7 +1299,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
               style={{
                 fontSize: 16,
                 backgroundColor: '#fff',
-                color: '#333',
+                color: '#dc3545',
                 border: 'none',
                 borderRadius: 4,
                 padding: '6px',
@@ -1253,7 +1313,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
               }}
               title="Clear Canvas"
             >
-              <FaEraser size={14} />
+              <FaTrash size={14} />
             </button>
           </div>
 
