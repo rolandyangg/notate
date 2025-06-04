@@ -67,6 +67,15 @@ const schema = BlockNoteSchema.create({
   }
 });
 
+interface Annotation {
+  id: string;
+  startPoint: { x: number; y: number };
+  textBox: { x: number; y: number };
+  text: string;
+  isEditing: boolean;
+  blockId?: string;
+}
+
 function App() {
   const editor = useCreateBlockNote({ 
     schema,
@@ -164,6 +173,20 @@ function App() {
   };
 
   const handleExport = async () => {
+    // Debug state variables
+    console.log('Current state variables:', {
+      annotations: {
+        raw: annotations,
+        length: annotations.length,
+        firstItem: annotations[0]
+      },
+      textboxes: {
+        raw: textboxes,
+        length: textboxes.length,
+        firstItem: textboxes[0]
+      }
+    });
+
     // Get all drawing blocks and their canvas data
     const drawingBlocks = editor.document.filter(block => block.type === 'drawing');
     console.log('Found drawing blocks:', drawingBlocks.length);
@@ -172,6 +195,58 @@ function App() {
       type: block.type,
       props: block.props
     })));
+
+    // Get scribble overlay canvas data
+    const scribbleCanvas = document.querySelector('.blocknote-container > div > canvas') as HTMLCanvasElement;
+    let scribbleData = null;
+    if (scribbleCanvas) {
+      const ctx = scribbleCanvas.getContext('2d');
+      if (ctx) {
+        const imageData = ctx.getImageData(0, 0, scribbleCanvas.width, scribbleCanvas.height);
+        scribbleData = {
+          width: scribbleCanvas.width,
+          height: scribbleCanvas.height,
+          pixelData: Array.from(imageData.data)
+        };
+        console.log('Scribble overlay data:', {
+          width: scribbleCanvas.width,
+          height: scribbleCanvas.height,
+          pixelDataLength: imageData.data.length
+        });
+      }
+    } else {
+      console.log('Scribble canvas not found');
+    }
+
+    // Log annotation tools data
+    console.log('Exporting annotation tools data:', {
+      annotations: {
+        count: annotations.length,
+        details: annotations.map(ann => ({
+          id: ann.id,
+          type: ann.type,
+          startPoint: ann.startPoint,
+          textBox: ann.textBox,
+          text: ann.text,
+          isEditing: ann.isEditing
+        }))
+      },
+      textboxes: {
+        count: textboxes.length,
+        details: textboxes.map(tb => ({
+          id: tb.id,
+          x: tb.x,
+          y: tb.y,
+          text: tb.text,
+          isEditing: tb.isEditing
+        }))
+      },
+      scribbleData: scribbleData ? {
+        width: scribbleData.width,
+        height: scribbleData.height,
+        pixelDataLength: scribbleData.pixelData.length
+      } : null
+    });
 
     // Debug DOM structure
     const editorElement = document.querySelector('.blocknote-editor');
@@ -287,9 +362,33 @@ function App() {
 
     const data = {
       blocks: editor.document,
-      annotations: annotations,
-      drawingData: drawingData
+      annotations: annotations.map(ann => ({
+        id: ann.id,
+        type: ann.type,
+        startPoint: ann.startPoint,
+        textBox: ann.textBox,
+        text: ann.text,
+        isEditing: ann.isEditing
+      })),
+      textboxes: textboxes.map(tb => ({
+        id: tb.id,
+        x: tb.x,
+        y: tb.y,
+        text: tb.text,
+        isEditing: tb.isEditing
+      })),
+      drawingData: drawingData,
+      scribbleData: scribbleData
     };
+
+    console.log('Final export data:', {
+      blocksCount: data.blocks.length,
+      annotationsCount: data.annotations.length,
+      textboxesCount: data.textboxes.length,
+      drawingDataCount: data.drawingData.length,
+      hasScribbleData: !!data.scribbleData
+    });
+
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -311,7 +410,10 @@ function App() {
         const data = JSON.parse(e.target?.result as string);
         console.log('Imported data:', {
           blocks: data.blocks?.length,
+          annotations: data.annotations?.length,
+          textboxes: data.textboxes?.length,
           drawingData: data.drawingData?.length,
+          hasScribbleData: !!data.scribbleData,
           firstDrawingData: data.drawingData?.[0] ? {
             blockId: data.drawingData[0].blockId,
             width: data.drawingData[0].width,
@@ -324,10 +426,62 @@ function App() {
         if (data.blocks) {
           editor.replaceBlocks(editor.document, data.blocks);
           
-          // Restore drawing data using MutationObserver
-          if (data.drawingData) {
-            const observer = new MutationObserver((_, obs) => {
-              // Check if all drawing blocks are rendered
+          // Wait for blocks to be rendered before restoring annotations
+          const observer = new MutationObserver((_, obs) => {
+            const editorElement = document.querySelector('.blocknote-editor');
+            if (!editorElement) return;
+
+            const editorRect = editorElement.getBoundingClientRect();
+            const blockElements = editorElement.querySelectorAll('.bn-block');
+            const blocks = editor.document;
+
+            // Get block positions
+            const blockPositions = Array.from(blockElements).map((element, index) => {
+              const rect = element.getBoundingClientRect();
+              const blockId = blocks[index]?.id;
+              
+              return {
+                index,
+                top: rect.top - editorRect.top,
+                height: rect.height,
+                blockId
+              };
+            });
+
+            // Restore annotations with adjusted positions
+            if (data.annotations) {
+              const adjustedAnnotations = data.annotations.map((annotation: Annotation) => {
+                if (!annotation.blockId) return annotation;
+
+                const blockPosition = blockPositions.find(pos => pos.blockId === annotation.blockId);
+                if (!blockPosition) return annotation;
+
+                // Adjust the y positions based on the block's new position
+                return {
+                  ...annotation,
+                  startPoint: {
+                    ...annotation.startPoint,
+                    y: blockPosition.top + (annotation.startPoint.y % blockPosition.height)
+                  },
+                  textBox: {
+                    ...annotation.textBox,
+                    y: blockPosition.top + (annotation.textBox.y % blockPosition.height)
+                  }
+                };
+              });
+
+              setAnnotations(adjustedAnnotations);
+              console.log('Restored annotations with adjusted positions:', adjustedAnnotations.length);
+            }
+
+            // Restore textboxes
+            if (data.textboxes) {
+              setTextboxes(data.textboxes);
+              console.log('Restored textboxes:', data.textboxes.length);
+            }
+            
+            // Restore drawing data
+            if (data.drawingData) {
               const drawingBlocks = editor.document.filter(block => block.type === 'drawing');
               console.log('Checking for drawing blocks to restore:', drawingBlocks.length);
               
@@ -397,21 +551,52 @@ function App() {
                     console.error('Canvas not found for block:', drawing.blockId);
                   }
                 });
-                
-                // Disconnect the observer once we're done
-                obs.disconnect();
-              }
-            });
 
-            // Start observing the document for changes
-            observer.observe(document.body, {
-              childList: true,
-              subtree: true
-            });
-          }
-        }
-        if (data.annotations) {
-          setAnnotations(data.annotations);
+                // Restore scribble overlay data if present
+                if (data.scribbleData) {
+                  const scribbleCanvas = document.querySelector('.blocknote-container > div > canvas') as HTMLCanvasElement;
+                  if (scribbleCanvas) {
+                    const ctx = scribbleCanvas.getContext('2d');
+                    if (ctx) {
+                      // Set canvas dimensions
+                      scribbleCanvas.width = data.scribbleData.width;
+                      scribbleCanvas.height = data.scribbleData.height;
+                      
+                      // Initialize drawing settings
+                      const dpr = window.devicePixelRatio || 1;
+                      ctx.scale(dpr, dpr);
+                      ctx.strokeStyle = '#000000';
+                      ctx.lineWidth = 2;
+                      ctx.lineCap = 'round';
+                      ctx.lineJoin = 'round';
+                      
+                      // Create ImageData from the saved pixel data
+                      const imageData = new ImageData(
+                        new Uint8ClampedArray(data.scribbleData.pixelData),
+                        data.scribbleData.width,
+                        data.scribbleData.height
+                      );
+
+                      // Put the image data back on the canvas
+                      ctx.putImageData(imageData, 0, 0);
+                      console.log('Restored scribble overlay data');
+                    }
+                  } else {
+                    console.error('Scribble canvas not found for restoration');
+                  }
+                }
+              }
+            }
+            
+            // Disconnect the observer once we're done
+            obs.disconnect();
+          });
+
+          // Start observing the document for changes
+          observer.observe(document.body, {
+            childList: true,
+            subtree: true
+          });
         }
       } catch (error) {
         console.error('Error importing file:', error);
