@@ -18,6 +18,8 @@ export const ScribbleOverlay = ({
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
   const [backgroundState, setBackgroundState] = useState(false); // false = draw, true = erase
   const [strokeColor, setStrokeColor] = useState('#5A5A5A');
+  const [hoveredButton, setHoveredButton] = useState<string | null>(null);
+  const [displayIntroText, setDisplayIntroText] = useState(true);
   const isMouseDown = useRef(false);
   const didDrawInStroke = useRef(false);
 
@@ -110,7 +112,7 @@ export const ScribbleOverlay = ({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [isScribbleMode, backgroundState, stopDrawing]);
+  }, [isScribbleMode, backgroundState, isDrawing]);
 
   // KeyBindings
   useEffect(() => {
@@ -155,8 +157,11 @@ export const ScribbleOverlay = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const x = e.clientX;
-    const y = e.clientY;
+    setDisplayIntroText(false);
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
     setIsDrawing(true);
     isMouseDown.current = true;
@@ -226,6 +231,14 @@ export const ScribbleOverlay = ({
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [isScribbleMode]);
 
+  const handleButtonMouseEnter = (buttonName: string) => {
+    setHoveredButton(buttonName);
+  };
+
+  const handleButtonMouseLeave = () => {
+    setHoveredButton(null);
+  };
+
   return (
     <div
       style={{
@@ -282,21 +295,22 @@ export const ScribbleOverlay = ({
       )}
       {isScribbleMode && (
         <>
-          <div
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              color: 'white',
-              padding: '10px 20px',
-              borderRadius: '4px',
-              pointerEvents: 'none',
-            }}
-          >
-            {isEraser ? 'Erase anywhere on the screen' : 'Draw anywhere on the screen'}
-          </div>
+          {displayIntroText && 
+            <div
+              style={{
+                position: 'fixed',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                color: 'white',
+                padding: '10px 20px',
+                borderRadius: '4px',
+                pointerEvents: 'none',
+              }}
+            >
+            Draw anywhere on the screen <br /> Press "space" to draw <br /> Press "e" to erase <br /> Press "escape" to exit
+            </div> }
           <div
             style={{
               position: 'fixed',
@@ -322,6 +336,8 @@ export const ScribbleOverlay = ({
                   setIsEraser(false);
                   setBackgroundState(false);
                 }}
+                onMouseEnter={() => handleButtonMouseEnter('pencil')}
+                onMouseLeave={handleButtonMouseLeave}
                 style={{
                   padding: '8px',
                   border: 'none',
@@ -332,15 +348,50 @@ export const ScribbleOverlay = ({
                   alignItems: 'center',
                   justifyContent: 'center',
                   transition: 'background-color 0.2s',
+                  position: 'relative',
                 }}
               >
                 <HiPencil size={24} color={!isEraser ? '#2196F3' : '#5A5A5A'} />
+                {hoveredButton === 'pencil' && (
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      bottom: '50px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      padding: '6px 12px',
+                      background: '#5A5A5A',
+                      color: 'white',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      whiteSpace: 'nowrap',
+                      pointerEvents: 'none',
+                      zIndex: 1300,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                    }}>
+                    Click and hold <br /> OR press "space" to draw
+                    {/* Arrow pointing down to the button */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: 0,
+                      height: 0,
+                      borderTop: '6px solid #5A5A5A',
+                      borderLeft: '6px solid transparent',
+                      borderRight: '6px solid transparent',
+                    }} />
+                  </div>
+                )}
               </button>
               <button
                 onClick={() => {
                   setIsEraser(true);
                   setBackgroundState(true);
                 }}
+                onMouseEnter={() => handleButtonMouseEnter('eraser')}
+                onMouseLeave={handleButtonMouseLeave}
                 style={{
                   padding: '8px',
                   border: 'none',
@@ -351,6 +402,7 @@ export const ScribbleOverlay = ({
                   alignItems: 'center',
                   justifyContent: 'center',
                   transition: 'background-color 0.2s',
+                  position: 'relative',
                 }}
               >
                 <img 
@@ -363,6 +415,38 @@ export const ScribbleOverlay = ({
                     filter: isEraser ? 'invert(45%) sepia(82%) saturate(1742%) hue-rotate(187deg) brightness(101%) contrast(101%)' : 'grayscale(100%)',
                   }} 
                 />
+                {hoveredButton === 'eraser' && (
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      bottom: '50px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      padding: '6px 12px',
+                      background: '#5A5A5A',
+                      color: 'white',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      whiteSpace: 'nowrap',
+                      pointerEvents: 'none',
+                      zIndex: 1300,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                    }}>
+                    Click and hold <br /> OR press "e" to erase
+                    {/* Arrow pointing down to the button */}
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: 0,
+                      height: 0,
+                      borderTop: '6px solid #5A5A5A',
+                      borderLeft: '6px solid transparent',
+                      borderRight: '6px solid transparent',
+                    }} />
+                  </div>
+                )}
               </button>
             </div>
             <div
@@ -447,4 +531,4 @@ export const ScribbleOverlay = ({
       )}
     </div>
   );
-}; 
+};
