@@ -24,7 +24,6 @@ import { TextboxOverlay } from "./TextboxOverlay";
 import { OverlayToolbar } from "./OverlayToolbar";
 import { ScribbleOverlay } from "./ScribbleOverlay";
 import { initialContent } from "./initialContent";
-import { ImageUploadFallback } from './ImageUploadFallback';
 
 // Custom "Drawing Block" menu item
 const insertDrawingBlockItem = (editor: BlockNoteEditor) => ({
@@ -88,119 +87,42 @@ function App() {
   const [mode, setMode] = useState<'comment-mode' | 'textbox-mode' | 'scribble-mode' | 'no-annotation-mode'>('no-annotation-mode');
   const [showTutorial, setShowTutorial] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showImageFallback, setShowImageFallback] = useState(false);
-  const [clipboardError, setClipboardError] = useState<string | null>(null);
 
   // Add clipboard paste handler
   useEffect(() => {
     const handlePaste = async (e: ClipboardEvent) => {
-      try {
-        setClipboardError(null);
-        console.log('Paste event triggered', {
-          hasClipboardData: !!e.clipboardData,
-          types: Array.from(e.clipboardData?.types || []),
-          isFocused: !!editor.getTextCursorPosition()
-        });
+      // Only handle paste if we're focused in the editor
+      if (!editor.getTextCursorPosition()) return;
+      
+      const items = Array.from(e.clipboardData?.items || []);
+      const imageItem = items.find(item => item.type.startsWith('image'));
+      
+      if (imageItem) {
+        e.preventDefault();
+        const blob = imageItem.getAsFile();
+        if (!blob) return;
 
-        // Only handle paste if we're focused in the editor
-        if (!editor.getTextCursorPosition()) {
-          console.log('Editor not focused, ignoring paste');
-          return;
-        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            // Get the current block
+            const currentBlock = editor.getTextCursorPosition()?.block;
+            if (!currentBlock) return;
 
-        let succeeded = false;
-
-        // Try modern Clipboard API first
-        try {
-          const clipboardItems = await navigator.clipboard.read();
-          console.log('Modern Clipboard API available, items:', clipboardItems.length);
-          
-          for (const clipboardItem of clipboardItems) {
-            for (const type of clipboardItem.types) {
-              if (type.startsWith('image/')) {
-                const blob = await clipboardItem.getType(type);
-                await handleImageBlob(blob);
-                succeeded = true;
-                return;
-              }
-            }
+            // Create and insert the image upload block
+            editor.insertBlocks(
+              [{
+                type: "imageUpload",
+                props: {
+                  src: reader.result
+                }
+              } as unknown as PartialBlock],
+              currentBlock,
+              "after"
+            );
           }
-        } catch (clipboardError) {
-          console.log('Modern Clipboard API failed, falling back to event.clipboardData', clipboardError);
-          setClipboardError('Modern clipboard access failed, trying fallback...');
-        }
-
-        // Fallback to traditional clipboardData
-        const items = Array.from(e.clipboardData?.items || []);
-        console.log('Clipboard items:', items.map(item => ({ type: item.type, kind: item.kind })));
-        
-        const imageItem = items.find(item => item.type.startsWith('image'));
-        
-        if (imageItem) {
-          e.preventDefault();
-          const blob = imageItem.getAsFile();
-          if (!blob) {
-            console.error('Failed to get image blob from clipboard item');
-            setClipboardError('Failed to access clipboard image');
-            setShowImageFallback(true);
-            return;
-          }
-          await handleImageBlob(blob);
-          succeeded = true;
-        }
-
-        if (!succeeded) {
-          setShowImageFallback(true);
-        }
-      } catch (error) {
-        console.error('Error handling paste:', error);
-        setClipboardError('Failed to process clipboard content');
-        setShowImageFallback(true);
-      }
-    };
-
-    // Helper function to handle image blob
-    const handleImageBlob = async (blob: Blob) => {
-      try {
-        console.log('Processing image blob:', {
-          size: blob.size,
-          type: blob.type
-        });
-
-        // Create a Promise-based FileReader
-        const readAsDataURL = (blob: Blob): Promise<string> => {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = () => reject(reader.error);
-            reader.readAsDataURL(blob);
-          });
         };
-
-        const dataUrl = await readAsDataURL(blob);
-        console.log('Successfully converted blob to data URL');
-
-        // Get the current block
-        const currentBlock = editor.getTextCursorPosition()?.block;
-        if (!currentBlock) {
-          console.error('No current block found');
-          return;
-        }
-
-        // Create and insert the image upload block
-        editor.insertBlocks(
-          [{
-            type: "imageUpload",
-            props: {
-              src: dataUrl
-            }
-          } as unknown as PartialBlock],
-          currentBlock,
-          "after"
-        );
-        console.log('Successfully inserted image block');
-      } catch (error) {
-        console.error('Error processing image:', error);
+        reader.readAsDataURL(blob);
       }
     };
 
@@ -876,30 +798,6 @@ function App() {
         isScribbleMode={isModeActive('scribble-mode')}
         setIsScribbleMode={setIsScribbleMode}
       />
-      {clipboardError && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          padding: '12px',
-          backgroundColor: '#fff3cd',
-          border: '1px solid #ffeeba',
-          borderRadius: '4px',
-          zIndex: 1000,
-          maxWidth: '300px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-        }}>
-          {clipboardError}
-        </div>
-      )}
-      {showImageFallback && editor.getTextCursorPosition()?.block && (
-        <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', zIndex: 1000 }}>
-          <ImageUploadFallback
-            editor={editor}
-            currentBlock={editor.getTextCursorPosition()?.block}
-          />
-        </div>
-      )}
     </div>
   );
 }
