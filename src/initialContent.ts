@@ -183,7 +183,7 @@ export const initialContent = [
             "content": [
               {
                 "type": "text",
-                "text": "You can press \"space\" to draw!",
+                "text": "You can hold \"space\" while tracing with your mouse to draw!",
                 "styles": {}
               }
             ],
@@ -376,7 +376,7 @@ export const initialContent = [
             "content": [
               {
                 "type": "text",
-                "text": "You can press \"space\" to draw and \"e\" to erase!",
+                "text": "You can hold \"space\" while tracing with your mouse to draw and hold \"e\" to erase while tracing as well!",
                 "styles": {}
               }
             ],
