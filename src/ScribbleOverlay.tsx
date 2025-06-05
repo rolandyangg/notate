@@ -48,10 +48,43 @@ export const ScribbleOverlay = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Debounce function to prevent too frequent updates
+    const debounce = (fn: Function, ms = 100) => {
+      let timeoutId: ReturnType<typeof setTimeout>;
+      return function (...args: any[]) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn.apply(null, args), ms);
+      };
+    };
+
     const updateCanvasSize = () => {
       const dpr = window.devicePixelRatio || 1;
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      
+      // Get the parent container's dimensions
+      const parentContainer = canvas.parentElement;
+      if (!parentContainer) return;
+      
+      // Get the maximum height of all content
+      const maxHeight = Math.max(
+        parentContainer.scrollHeight,
+        parentContainer.offsetHeight,
+        parentContainer.clientHeight,
+        document.documentElement.scrollHeight,
+        document.documentElement.offsetHeight,
+        document.documentElement.clientHeight
+      );
+      
+      const width = parentContainer.offsetWidth;
+      const height = maxHeight;
+
+      // Only update if dimensions actually changed
+      if (canvas.width === width * dpr && canvas.height === height * dpr) {
+        return;
+      }
+
+      // Update canvas style dimensions to match parent
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
 
       // Set the canvas size accounting for device pixel ratio
       canvas.width = width * dpr;
@@ -67,12 +100,52 @@ export const ScribbleOverlay = ({
       ctx.lineJoin = 'round';
     };
 
+    // Create debounced version of the update function
+    const debouncedUpdate = debounce(updateCanvasSize, 100);
+
     // Initial setup
     updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
+    
+    // Update on resize and scroll
+    window.addEventListener('resize', debouncedUpdate);
+    window.addEventListener('scroll', debouncedUpdate);
+
+    // Create a mutation observer to watch for DOM changes
+    const observer = new MutationObserver((mutations) => {
+      // Ignore mutations to the canvas itself and its children
+      const relevantMutations = mutations.filter(mutation => {
+        const target = mutation.target as HTMLElement;
+        return !canvas.contains(target) && target !== canvas;
+      });
+
+      if (relevantMutations.length === 0) return;
+
+      // Check if any mutations affect size
+      const shouldUpdate = relevantMutations.some(mutation => {
+        const target = mutation.target as HTMLElement;
+        return mutation.type === 'childList' || 
+               (mutation.type === 'attributes' && 
+                (mutation.attributeName === 'style' || 
+                 mutation.attributeName === 'class'));
+      });
+      
+      if (shouldUpdate) {
+        debouncedUpdate();
+      }
+    });
+
+    // Start observing the document body for DOM changes
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style', 'class'] // Only watch style and class changes
+    });
 
     return () => {
-      window.removeEventListener('resize', updateCanvasSize);
+      window.removeEventListener('resize', debouncedUpdate);
+      window.removeEventListener('scroll', debouncedUpdate);
+      observer.disconnect();
     };
   }, []);
 
@@ -160,6 +233,7 @@ export const ScribbleOverlay = ({
     setDisplayIntroText(false);
 
     const rect = canvas.getBoundingClientRect();
+    // rect.top already includes scroll offset, so we just need clientX/Y relative to rect
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
@@ -188,8 +262,10 @@ export const ScribbleOverlay = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const x = e.clientX;
-    const y = e.clientY;
+    const rect = canvas.getBoundingClientRect();
+    // rect.top already includes scroll offset, so we just need clientX/Y relative to rect
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
     // Only start a stroke when spacebar is currently held or mouse is down
     const shouldStartStroke = (isSpaceHeld || isMouseDown.current) && !isDrawing;
@@ -219,12 +295,15 @@ export const ScribbleOverlay = ({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  // Track mouse position
+  // Track mouse position for eraser cursor
   useEffect(() => {
     if (!isScribbleMode) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      setCursorPosition({ x: e.clientX, y: e.clientY });
+      setCursorPosition({ 
+        x: e.clientX, 
+        y: e.clientY
+      });
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -247,7 +326,9 @@ export const ScribbleOverlay = ({
         left: 0,
         right: 0,
         bottom: 0,
+        width: '100%',
         minHeight: '100vh',
+        height: '100%',
         zIndex: 999,
         cursor: isScribbleMode ? (isEraser ? 'none' : 'crosshair') : 'default',
         pointerEvents: isScribbleMode ? 'auto' : 'none',
