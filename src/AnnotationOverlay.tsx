@@ -295,23 +295,23 @@ export const AnnotationOverlay = ({
     
     const editorElement = document.querySelector('.blocknote-editor');
     if (editorElement) {
-      const editorRect = editorElement.getBoundingClientRect();
+      const rect = editorElement.getBoundingClientRect();
       const blockElements = editorElement.querySelectorAll('.bn-block');
 
-      // Calculate position relative to editor
-      const relativeX = e.clientX - editorRect.left;
-      const relativeY = e.clientY - editorRect.top;
+      // Use mouse position directly for initial placement
+      const x = e.pageX;
+      const y = e.pageY;
 
       for (const blockElement of blockElements) {
-        const rect = blockElement.getBoundingClientRect();
-        const blockRelativeTop = rect.top - editorRect.top;
-        const blockRelativeBottom = rect.bottom - editorRect.top;
+        const blockRect = blockElement.getBoundingClientRect();
+        const blockRelativeTop = blockRect.top - rect.top;
+        const blockRelativeBottom = blockRect.bottom - rect.top;
         
         if (
-          e.clientX >= rect.left &&
-          e.clientX <= rect.right &&
-          relativeY >= blockRelativeTop &&
-          relativeY <= blockRelativeBottom
+          e.clientX >= blockRect.left &&
+          e.clientX <= blockRect.right &&
+          (e.clientY - rect.top) >= blockRelativeTop &&
+          (e.clientY - rect.top) <= blockRelativeBottom
         ) {
           const blockIndex = Array.from(blockElements).indexOf(blockElement);
           if (blockIndex !== -1 && blocks[blockIndex]) {
@@ -323,8 +323,8 @@ export const AnnotationOverlay = ({
 
       setCurrentAnnotation({
         id: `annotation-${Date.now()}`,
-        startPoint: { x: relativeX, y: relativeY },
-        textBox: { x: relativeX, y: relativeY },
+        startPoint: { x, y },
+        textBox: { x, y },
         blockId: clickedBlock?.id
       });
 
