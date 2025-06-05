@@ -39,13 +39,6 @@ interface TextElement {
   isSelected: boolean;
 }
 
-interface CanvasState {
-  imageData: string;
-  width: number;
-  height: number;
-  penColor: string;
-}
-
 export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundImage?: string, block?: any, editor?: any }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const roughCanvasRef = useRef<ReturnType<typeof rough.canvas> | null>(null);
@@ -72,7 +65,6 @@ export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundIm
     const [isHovered, setIsHovered] = useState(false);
     const [isCanvasFocused, setIsCanvasFocused] = useState(false);
     const [fontSize, setFontSize] = useState(16);
-    const [isErasing, setIsErasing] = useState(false);
 
   
     const undoStack = useRef<string[]>([]);
@@ -86,9 +78,6 @@ export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundIm
     const dragStart = useRef<{x: number; y: number}>({ x: 0, y: 0 });
     const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
     const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
-
-    // Add ref for background image
-    const backgroundImageRef = useRef<string | null>(null);
 
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {

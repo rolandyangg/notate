@@ -636,7 +636,7 @@ function App() {
             cursor: 'pointer',
           }}
         >
-          Show Tutorial
+          Show Help
         </button>
         <button
           onClick={handleExport}
