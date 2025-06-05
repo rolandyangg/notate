@@ -13,12 +13,18 @@ import {
   FaFont,
   FaUndo,
   FaRedo,
-  FaEraser
+  FaEraser,
+  FaTrash
 } from "react-icons/fa";
 
 const drawingBlockSpec = {
   type: "drawing",
-  propSchema: {},
+  propSchema: {
+    canvasData: { default: "" },
+    width: { default: 800 },
+    height: { default: 400 },
+    penColor: { default: "#333" }
+  },
   content: "none" as const,
 };
 
@@ -33,7 +39,14 @@ interface TextElement {
   isSelected: boolean;
 }
 
-export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string }) => {
+interface CanvasState {
+  imageData: string;
+  width: number;
+  height: number;
+  penColor: string;
+}
+
+export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundImage?: string, block?: any, editor?: any }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const roughCanvasRef = useRef<ReturnType<typeof rough.canvas> | null>(null);
     const isDrawing = useRef(false);
@@ -49,13 +62,17 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
 
   
     const [isSpaceHeld, setIsSpaceHeld] = useState(false);
-    const [size, setSize] = useState({ width: 800, height: 400 });
-    const [brushColor, setBrushColor] = useState("#333");
+    const [size, setSize] = useState(() => ({
+      width: block?.props?.width || 800,
+      height: block?.props?.height || 400
+    }));
+    const [brushColor, setBrushColor] = useState(block?.props?.penColor || "#333");
     const [brushSize, setBrushSize] = useState(2);
     const [tool, setTool] = useState("pen");
     const [isHovered, setIsHovered] = useState(false);
     const [isCanvasFocused, setIsCanvasFocused] = useState(false);
     const [fontSize, setFontSize] = useState(16);
+    const [isErasing, setIsErasing] = useState(false);
 
   
     const undoStack = useRef<string[]>([]);
@@ -68,6 +85,10 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
     const [isResizing, setIsResizing] = useState(false);
     const dragStart = useRef<{x: number; y: number}>({ x: 0, y: 0 });
     const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
+    const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+
+    // Add ref for background image
+    const backgroundImageRef = useRef<string | null>(null);
 
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
@@ -93,43 +114,88 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
           roughCanvasRef.current = rough.canvas(canvasRef.current);
           const ctx = canvasRef.current.getContext("2d")!;
       
-          if (backgroundImage) {
-            setBrushColor("#ff0000"); // ✅ Set brush to red
-      
-            const img = new Image();
-            img.onload = () => {
-              const newSize = {
-                width: img.naturalWidth,
-                height: img.naturalHeight,
-              };
-              setSize(newSize);
-              setTimeout(() => {
-                ctx.clearRect(0, 0, newSize.width, newSize.height);
-                ctx.drawImage(img, 0, 0, newSize.width, newSize.height);
-                saveState();
-              }, 0);
-            };
-            img.src = backgroundImage;
-          } else {
-            saveState();
-          }
+          const initializeCanvas = async () => {
+            // Only handle new background image if one is being added for the first time
+            if (backgroundImage && !block?.props?.canvasData) {
+              const img = new Image();
+              await new Promise((resolve) => {
+                img.onload = () => {
+                  const newSize = {
+                    width: img.naturalWidth,
+                    height: img.naturalHeight,
+                  };
+                  setSize(newSize);
+                  
+                  // Set initial pen color to red for images
+                  setBrushColor("#ff0000");
+                  
+                  // Update canvas dimensions
+                  canvasRef.current!.width = newSize.width;
+                  canvasRef.current!.height = newSize.height;
+                  
+                  // Draw the background image
+                  ctx.clearRect(0, 0, newSize.width, newSize.height);
+                  ctx.drawImage(img, 0, 0, newSize.width, newSize.height);
+                  
+                  // Save the initial state with background
+                  saveState();
+                  resolve(null);
+                };
+                img.src = backgroundImage;
+              });
+            }
+            // If there's existing canvas data, just restore that complete state
+            else if (block?.props?.canvasData) {
+              const img = new Image();
+              await new Promise((resolve) => {
+                img.onload = () => {
+                  // Update canvas dimensions from props
+                  const newSize = {
+                    width: block.props.width || 800,
+                    height: block.props.height || 400
+                  };
+                  setSize(newSize);
+                  canvasRef.current!.width = newSize.width;
+                  canvasRef.current!.height = newSize.height;
+                  
+                  // Draw the complete saved canvas state
+                  ctx.clearRect(0, 0, newSize.width, newSize.height);
+                  ctx.drawImage(img, 0, 0, newSize.width, newSize.height);
+                  lastSavedSnapshot.current = block.props.canvasData;
+                  undoStack.current = [block.props.canvasData];
+                  resolve(null);
+                };
+                img.src = block.props.canvasData;
+              });
+            }
+            // Initialize empty canvas with default size
+            else {
+              const defaultSize = { width: 800, height: 400 };
+              setSize(defaultSize);
+              canvasRef.current!.width = defaultSize.width;
+              canvasRef.current!.height = defaultSize.height;
+              ctx.clearRect(0, 0, defaultSize.width, defaultSize.height);
+            }
+          };
+
+          initializeCanvas();
         }
-      }, [backgroundImage]);
+      }, [backgroundImage, block?.id]);
       
   
     const saveState = () => {
       if (!canvasRef.current) return;
 
-      // Always render text to temporary canvas to ensure proper state saving
+      const canvas = canvasRef.current;
       const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvasRef.current.width;
-      tempCanvas.height = canvasRef.current.height;
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
       const tempCtx = tempCanvas.getContext('2d')!;
       
-      // Copy current canvas state
-      tempCtx.drawImage(canvasRef.current, 0, 0);
+      // Draw the current canvas state (includes background and drawings)
+      tempCtx.drawImage(canvas, 0, 0);
       
-      // If using text tool, render current text elements
+      // Add text elements if any
       if (tool === 'text' && textElements.length > 0) {
         textElements.forEach(element => {
           tempCtx.font = `${element.fontSize}px Arial`;
@@ -139,10 +205,21 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       }
       
       const dataURL = tempCanvas.toDataURL();
-      if (dataURL && undoStack.current[undoStack.current.length - 1] !== dataURL) {
+      if (dataURL && lastSavedSnapshot.current !== dataURL) {
         undoStack.current.push(dataURL);
         redoStack.current = [];
         lastSavedSnapshot.current = dataURL;
+
+        // Update block props with current canvas state and dimensions
+        if (editor && block) {
+          editor.updateBlock(block, {
+            props: {
+              canvasData: dataURL,
+              width: canvas.width,
+              height: canvas.height
+            }
+          });
+        }
       }
     };
   
@@ -244,6 +321,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
         window.removeEventListener("keyup", handleKeyUp);
         setIsSpaceHeld(false);
         stopDrawing();
+        setMousePosition(null);
       };
   
       canvas.addEventListener("mouseenter", handleMouseEnter);
@@ -322,11 +400,21 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       currentX.current = x;
       currentY.current = y;
 
-      if (tool === 'pen') {
-        rc.line(startX.current, startY.current, x, y, {
-          stroke: brushColor,
-          strokeWidth: brushSize,
-        });
+      if (tool === 'pen' || tool === 'eraser') {
+        if (tool === 'eraser') {
+          // Eraser functionality
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x, y, brushSize * 2, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.clearRect(x - brushSize * 2, y - brushSize * 2, brushSize * 4, brushSize * 4);
+          ctx.restore();
+        } else {
+          rc.line(startX.current, startY.current, x, y, {
+            stroke: brushColor,
+            strokeWidth: brushSize,
+          });
+        }
         startX.current = x;
         startY.current = y;
         didDrawInStroke.current = true;
@@ -415,6 +503,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
       if ((tool === 'line' || tool === 'rect' || tool === 'ellipse' || tool === 'arrow') || (tool === 'pen' && didDrawInStroke.current)) {
         saveState();
       }
+      setMousePosition(null);
     };
   
     const handleMouseDown = (e: React.MouseEvent) => {
@@ -425,10 +514,18 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
     };
   
     const handleMouseMove = (e: React.MouseEvent) => {
-      if (tool === 'text') return; // Don't handle drawing moves if using text tool
+      if (tool === 'text') {
+        handleTextMouseMove(e);
+        handleResizeMouseMove(e);
+        return;
+      }
+
       const rect = canvasRef.current!.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+
+      // Update mouse position for eraser outline
+      setMousePosition({ x, y });
 
       // Only start a stroke when spacebar is currently held or mouse is down
       const shouldStartStroke = (isSpaceHeld || isMouseDown.current) && !isDrawing.current;
@@ -451,38 +548,70 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
   
     const handleResizeMouseDown = (e: React.MouseEvent) => {
       e.preventDefault();
-      e.stopPropagation(); // Stop event propagation
+      e.stopPropagation();
+      
       const canvas = canvasRef.current!;
-      const imageDataURL = canvas.toDataURL();
-      const aspectRatio = size.width / size.height;
+      const ctx = canvas.getContext('2d')!;
+      
+      // Store initial state
+      const initialState = canvas.toDataURL();
+      const initialWidth = canvas.width;
+      const initialHeight = canvas.height;
+      const aspectRatio = initialWidth / initialHeight;
       const startX = e.clientX;
       const startY = e.clientY;
-      const startWidth = size.width;
 
-      // Create handlers outside of the resize div's scope
-      const onMouseMove = (e: MouseEvent) => {
-        const delta = Math.max(e.clientX - startX, e.clientY - startY);
-        const newWidth = Math.max(100, startWidth + delta);
-        const newHeight = newWidth / aspectRatio;
+      let resizeTimeout: NodeJS.Timeout | null = null;
+      let lastWidth = initialWidth;
+      let lastHeight = initialHeight;
 
-        setSize(() => {
-          setTimeout(() => {
-            const ctx = canvas.getContext("2d")!;
-            const img = new Image();
-            img.onload = () => {
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(img, 0, 0, newWidth, newHeight);
-            };
-            img.src = imageDataURL;
-          }, 0);
-          return { width: newWidth, height: newHeight };
+      const redrawCanvas = async (width: number, height: number) => {
+        // Update canvas dimensions
+        canvas.width = width;
+        canvas.height = height;
+        setSize({ width, height });
+        
+        // Draw the resized content
+        const img = new Image();
+        await new Promise<void>((resolve) => {
+          img.onload = () => {
+            ctx.clearRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve();
+          };
+          img.src = initialState;
         });
       };
 
-      const onMouseUp = () => {
+      const onMouseMove = (e: MouseEvent) => {
+        const delta = Math.max(e.clientX - startX, e.clientY - startY);
+        const newWidth = Math.max(100, initialWidth + delta);
+        const newHeight = newWidth / aspectRatio;
+
+        if (Math.abs(newWidth - lastWidth) > 1 || Math.abs(newHeight - lastHeight) > 1) {
+          lastWidth = newWidth;
+          lastHeight = newHeight;
+
+          if (resizeTimeout) {
+            clearTimeout(resizeTimeout);
+          }
+
+          resizeTimeout = setTimeout(() => {
+            redrawCanvas(newWidth, newHeight);
+          }, 0);
+        }
+      };
+
+      const onMouseUp = async () => {
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
-        saveState(); // Save state after resize
+
+        if (resizeTimeout) {
+          clearTimeout(resizeTimeout);
+        }
+
+        await redrawCanvas(lastWidth, lastHeight);
+        saveState();
       };
 
       document.addEventListener("mousemove", onMouseMove);
@@ -816,11 +945,10 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
         height: size.height,
         overflow: "hidden"
       }}
-      onMouseMove={(e) => {
-        if (tool === 'text') {
-          handleTextMouseMove(e);
-          handleResizeMouseMove(e);
-        }
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => {
+        setMousePosition(null);
+        stopDrawing();
       }}
     >
       {/* Text Layer */}
@@ -968,13 +1096,30 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
           display: "block", 
           width: "100%", 
           height: "100%",
-          pointerEvents: tool === 'text' ? 'none' : 'auto'
+          pointerEvents: tool === 'text' ? 'none' : 'auto',
+          cursor: tool === 'eraser' ? 'none' : 'default'
         }}
         onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={stopDrawing}
       />
+
+      {/* Eraser cursor overlay */}
+      {tool === 'eraser' && mousePosition && (
+        <div
+          style={{
+            position: 'absolute',
+            left: mousePosition.x - brushSize * 2,
+            top: mousePosition.y - brushSize * 2,
+            width: brushSize * 4,
+            height: brushSize * 4,
+            border: '2px solid #666',
+            borderRadius: '50%',
+            pointerEvents: 'none',
+            transform: 'translate(-1px, -1px)', // Adjust for border width
+            zIndex: 2
+          }}
+        />
+      )}
 
       {/* Modern resize handle */}
       <div
@@ -1084,6 +1229,27 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
               <FaPen size={14} />
             </button>
             <button
+              onClick={() => setTool('eraser')}
+              style={{
+                fontSize: 16,
+                backgroundColor: tool === 'eraser' ? '#e0e0e0' : '#fff',
+                color: '#333',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 32,
+                height: 32,
+                flexShrink: 0,
+              }}
+              title="Eraser Tool"
+            >
+              <FaEraser size={14} />
+            </button>
+            <button
               onClick={() => setTool('line')}
               style={{
                 fontSize: 16,
@@ -1190,7 +1356,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
             </button>
           </div>
 
-          {/* Undo/Redo Buttons */}
+          {/* Undo/Redo/Clear Buttons */}
           <div style={{ display: 'flex', gap: 4, borderRight: '1px solid #ddd', paddingRight: 8, flexShrink: 0 }}>
             <button
               onClick={handleUndo}
@@ -1239,7 +1405,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
               style={{
                 fontSize: 16,
                 backgroundColor: '#fff',
-                color: '#333',
+                color: '#dc3545',
                 border: 'none',
                 borderRadius: 4,
                 padding: '6px',
@@ -1253,7 +1419,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
               }}
               title="Clear Canvas"
             >
-              <FaEraser size={14} />
+              <FaTrash size={14} />
             </button>
           </div>
 
@@ -1288,7 +1454,17 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
             <input
               type="color"
               value={brushColor}
-              onChange={(e) => setBrushColor(e.target.value)}
+              onChange={(e) => {
+                setBrushColor(e.target.value);
+                if (editor && block) {
+                  editor.updateBlock(block, {
+                    props: {
+                      ...block.props,
+                      penColor: e.target.value
+                    }
+                  });
+                }
+              }}
               style={{
                 width: 32,
                 height: 32,
@@ -1308,7 +1484,7 @@ export const DrawingCanvas = ({ backgroundImage }: { backgroundImage?: string })
 };
 
 const drawingBlockImplementation: ReactCustomBlockImplementation<typeof drawingBlockSpec, any, any> = {
-  render: () => <DrawingCanvas />,
+  render: ({ block, editor }) => <DrawingCanvas block={block} editor={editor} />,
 };
 
 export const Drawing = createReactBlockSpec(drawingBlockSpec, drawingBlockImplementation);
