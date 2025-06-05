@@ -2,7 +2,7 @@ import {
     createReactBlockSpec,
     type ReactCustomBlockImplementation,
   } from "@blocknote/react";
-  import React, { useRef, useEffect } from "react";
+  import React, { useRef, useEffect, useState } from "react";
   import { DrawingCanvas } from "./Drawing.tsx"; // Make sure this path is correct
   
   const imageUploadBlockSpec = {
@@ -19,10 +19,34 @@ import {
   const ImageUploadCanvas = ({ block, editor }: any) => {
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const [imageError, setImageError] = useState<string | null>(null);
+
+    const validateAndUpdateImage = (dataUrl: string) => {
+      return new Promise<void>((resolve, reject) => {
+        const img = document.createElement('img');
+        img.onload = () => {
+          editor.updateBlock(block, {
+            props: {
+              ...block.props,
+              src: dataUrl,
+              canvasData: "",
+              width: img.naturalWidth,
+              height: img.naturalHeight
+            }
+          });
+          setImageError(null);
+          resolve();
+        };
+        img.onerror = () => {
+          reject(new Error("Failed to load image"));
+        };
+        img.src = dataUrl;
+      });
+    };
 
     // Handle clipboard paste events
     useEffect(() => {
-      const handlePaste = (e: ClipboardEvent) => {
+      const handlePaste = async (e: ClipboardEvent) => {
         // Check if the paste event target is within our component
         if (!containerRef.current?.contains(e.target as Node)) return;
 
@@ -34,49 +58,60 @@ import {
           const blob = imageItem.getAsFile();
           if (!blob) return;
 
-          const reader = new FileReader();
-          reader.onload = () => {
-            if (typeof reader.result === 'string') {
-              editor.updateBlock(block, {
-                props: {
-                  ...block.props,
-                  src: reader.result,
-                  canvasData: "", // Reset canvas data for new image
+          try {
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                if (typeof reader.result === 'string') {
+                  resolve(reader.result);
+                } else {
+                  reject(new Error("Invalid file data"));
                 }
-              });
-            }
-          };
-          reader.readAsDataURL(blob);
+              };
+              reader.onerror = () => reject(reader.error);
+              reader.readAsDataURL(blob);
+            });
+
+            await validateAndUpdateImage(dataUrl);
+          } catch (error) {
+            console.error("Error processing pasted image:", error);
+            setImageError("Failed to process pasted image");
+          }
         }
       };
 
-      // Add paste event listener to the document
       document.addEventListener('paste', handlePaste);
       return () => document.removeEventListener('paste', handlePaste);
     }, [block, editor]);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
   
       if (!file.type.startsWith("image/")) {
-        alert("Please upload a valid image file.");
+        setImageError("Please upload a valid image file.");
         return;
       }
   
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          editor.updateBlock(block, {
-            props: {
-              ...block.props,
-              src: reader.result,
-              canvasData: "", // Reset canvas data for new image
-            },
-          }); 
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === 'string') {
+              resolve(reader.result);
+            } else {
+              reject(new Error("Invalid file data"));
+            }
+          };
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(file);
+        });
+
+        await validateAndUpdateImage(dataUrl);
+      } catch (error) {
+        console.error("Error processing uploaded image:", error);
+        setImageError("Failed to process uploaded image");
+      }
     };
   
     const handleUploadClick = () => {
@@ -84,6 +119,68 @@ import {
     };
   
     const uploaded = Boolean(block.props.src);
+
+    // Validate the existing image if it's already uploaded
+    useEffect(() => {
+      if (uploaded && block.props.src) {
+        validateAndUpdateImage(block.props.src).catch(() => {
+          setImageError("Failed to load image");
+        });
+      }
+    }, [block.props.src]);
+  
+    if (imageError) {
+      return (
+        <div
+          ref={containerRef}
+          contentEditable={false}
+          style={{
+            fontFamily: "'Inter', sans-serif",
+            position: "relative",
+            display: "flex",
+            justifyContent: "flex-start",
+            alignItems: "center",
+            flexDirection: "column",
+            gap: 10,
+            width: "100%",
+            maxWidth: 400,
+            margin: "20px",
+            padding: 20,
+            borderRadius: 12,
+            border: "1px solid #e0e0e0",
+            backgroundColor: "#fff4f4",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ color: '#dc3545', marginBottom: '10px' }}>
+            {imageError}
+          </div>
+          <button
+            onClick={handleUploadClick}
+            style={{
+              fontFamily: "'Inter', sans-serif",
+              fontSize: 14,
+              fontWeight: 500,
+              backgroundColor: "#fff",
+              color: "#333",
+              border: "1px solid #ccc",
+              borderRadius: 8,
+              padding: "10px 16px",
+              cursor: "pointer",
+            }}
+          >
+            Try Again
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            style={{ display: "none" }}
+          />
+        </div>
+      );
+    }
   
     return uploaded ? (
         <DrawingCanvas 
