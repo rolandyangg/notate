@@ -45,6 +45,7 @@ export const AnnotationOverlay = ({
   const overlayRef = useRef<HTMLDivElement>(null);
   const blockPositionsRef = useRef<BlockPosition[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [overlayDimensions, setOverlayDimensions] = useState({ width: 0, height: 0 });
 
   // Add keyboard event listener for Tab+C to start/stop annotation mode
   useEffect(() => {
@@ -168,22 +169,72 @@ export const AnnotationOverlay = ({
     };
   }, [editor]);
 
+  // Add dynamic sizing effect
+  useEffect(() => {
+    const updateOverlaySize = () => {
+      const editorElement = document.querySelector('.blocknote-editor');
+      if (!editorElement) return;
+
+      const parentContainer = editorElement.parentElement;
+      if (!parentContainer) return;
+      
+      // Get the maximum height of all content
+      const maxHeight = Math.max(
+        parentContainer.scrollHeight,
+        parentContainer.offsetHeight,
+        parentContainer.clientHeight,
+        document.documentElement.scrollHeight,
+        document.documentElement.offsetHeight,
+        document.documentElement.clientHeight
+      );
+      
+      const width = parentContainer.offsetWidth;
+      const height = maxHeight;
+
+      setOverlayDimensions({ width, height });
+    };
+
+    // Initial setup
+    updateOverlaySize();
+    
+    // Update on resize and scroll
+    window.addEventListener('resize', updateOverlaySize);
+    window.addEventListener('scroll', updateOverlaySize);
+
+    return () => {
+      window.removeEventListener('resize', updateOverlaySize);
+      window.removeEventListener('scroll', updateOverlaySize);
+    };
+  }, []);
+
   // Handle mouse move for dragging
   const handleMouseMove = (e: MouseEvent) => {
     if (!dragState) return;
 
+    const editorElement = document.querySelector('.blocknote-editor');
+    if (!editorElement) return;
+
+    const editorRect = editorElement.getBoundingClientRect();
     const dx = e.clientX - dragState.startX;
     const dy = e.clientY - dragState.startY;
 
     if (dragState.type === 'annotation-creation') {
       // Update the current annotation's textbox position during creation
-      setCurrentAnnotation(prev => prev ? {
-        ...prev,
-        textBox: {
-          x: prev.startPoint!.x + dx,
-          y: prev.startPoint!.y + dy
-        }
-      } : null);
+      setCurrentAnnotation(prev => {
+        if (!prev) return null;
+
+        // Calculate new position relative to editor
+        const newX = prev.startPoint!.x + dx;
+        const newY = prev.startPoint!.y + dy;
+
+        return {
+          ...prev,
+          textBox: {
+            x: newX,
+            y: newY
+          }
+        };
+      });
     } else {
       // Handle existing annotation dragging
       setAnnotations(annotations.map(ann => {
@@ -244,16 +295,23 @@ export const AnnotationOverlay = ({
     
     const editorElement = document.querySelector('.blocknote-editor');
     if (editorElement) {
+      const editorRect = editorElement.getBoundingClientRect();
       const blockElements = editorElement.querySelectorAll('.bn-block');
+
+      // Calculate position relative to editor
+      const relativeX = e.clientX - editorRect.left;
+      const relativeY = e.clientY - editorRect.top;
 
       for (const blockElement of blockElements) {
         const rect = blockElement.getBoundingClientRect();
+        const blockRelativeTop = rect.top - editorRect.top;
+        const blockRelativeBottom = rect.bottom - editorRect.top;
         
         if (
           e.clientX >= rect.left &&
           e.clientX <= rect.right &&
-          e.clientY >= rect.top &&
-          e.clientY <= rect.bottom
+          relativeY >= blockRelativeTop &&
+          relativeY <= blockRelativeBottom
         ) {
           const blockIndex = Array.from(blockElements).indexOf(blockElement);
           if (blockIndex !== -1 && blocks[blockIndex]) {
@@ -265,8 +323,8 @@ export const AnnotationOverlay = ({
 
       setCurrentAnnotation({
         id: `annotation-${Date.now()}`,
-        startPoint: { x: e.clientX, y: e.clientY },
-        textBox: { x: e.clientX, y: e.clientY },
+        startPoint: { x: relativeX, y: relativeY },
+        textBox: { x: relativeX, y: relativeY },
         blockId: clickedBlock?.id
       });
 
@@ -328,6 +386,7 @@ export const AnnotationOverlay = ({
             backgroundColor: '#666',
             borderRadius: '50%',
             cursor: 'move',
+            pointerEvents: 'auto',
           }}
         />
         {/* Line connecting circle to text box */}
@@ -341,6 +400,7 @@ export const AnnotationOverlay = ({
             backgroundColor: '#666',
             transform: `rotate(${angle}deg)`,
             transformOrigin: '0 0',
+            pointerEvents: 'none',
           }}
         />
       </>
@@ -355,11 +415,11 @@ export const AnnotationOverlay = ({
           ref={overlayRef}
           onMouseDown={handleMouseDown}
           style={{
-            position: 'fixed',
+            position: 'absolute',
             top: 0,
             left: 0,
-            right: 0,
-            bottom: 0,
+            width: overlayDimensions.width || '100%',
+            height: overlayDimensions.height || '100%',
             zIndex: 999,
             cursor: 'crosshair',
           }}
@@ -412,7 +472,7 @@ export const AnnotationOverlay = ({
 
       {/* Existing Annotations */}
       {annotations.map(annotation => (
-        <div key={annotation.id}>
+        <div key={annotation.id} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
           {/* Arrow */}
           {drawArrow(annotation.startPoint, annotation.textBox, annotation.id)}
           
@@ -443,6 +503,7 @@ export const AnnotationOverlay = ({
               padding: '8px',
               zIndex: 1000,
               cursor: 'move',
+              pointerEvents: 'auto',
             }}
           >
             {annotation.isEditing ? (
