@@ -22,23 +22,31 @@ export const ScribbleOverlay = ({
   const [displayIntroText, setDisplayIntroText] = useState(true);
   const isMouseDown = useRef(false);
   const didDrawInStroke = useRef(false);
+  const lastDrawnState = useRef<ImageData | null>(null);
 
-  const stopDrawing = () => {
-    if (!isDrawing) return;
-    
+  const saveCanvasState = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.closePath();
-      ctx.globalCompositeOperation = 'source-over';
-    }
-    
-    setIsDrawing(false);
-    isMouseDown.current = false;
-    didDrawInStroke.current = false;
+    if (!ctx) return;
+    lastDrawnState.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
   };
+
+  const restoreCanvasState = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !lastDrawnState.current) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.putImageData(lastDrawnState.current, 0, 0);
+  };
+
+  // Save canvas state after each stroke
+  useEffect(() => {
+    if (!isDrawing && didDrawInStroke.current) {
+      saveCanvasState();
+      didDrawInStroke.current = false;
+    }
+  }, [isDrawing]);
 
   // Initialize canvas once on mount
   useEffect(() => {
@@ -47,15 +55,6 @@ export const ScribbleOverlay = ({
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    // Debounce function to prevent too frequent updates
-    const debounce = (fn: Function, ms = 100) => {
-      let timeoutId: ReturnType<typeof setTimeout>;
-      return function (...args: any[]) {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => fn.apply(null, args), ms);
-      };
-    };
 
     const updateCanvasSize = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -82,6 +81,19 @@ export const ScribbleOverlay = ({
         return;
       }
 
+      // Save current state before resize if we have it
+      const currentState = lastDrawnState.current;
+
+      // Create a temporary canvas to store the current state
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      if (tempCtx) {
+        // Copy the current canvas content to the temporary canvas
+        tempCtx.drawImage(canvas, 0, 0);
+      }
+
       // Update canvas style dimensions to match parent
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
@@ -90,64 +102,59 @@ export const ScribbleOverlay = ({
       canvas.width = width * dpr;
       canvas.height = height * dpr;
 
+      // Get the context and scale it
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
       // Scale the context to match the device pixel ratio
       ctx.scale(dpr, dpr);
 
+      // Restore the previous canvas content
+      if (tempCtx) {
+        ctx.drawImage(tempCanvas, 0, 0);
+        // Update the saved state with new dimensions
+        saveCanvasState();
+      } else if (currentState) {
+        // If we couldn't create a temp canvas but have a saved state, restore it
+        ctx.putImageData(currentState, 0, 0);
+      }
+
       // Set default drawing style
-      ctx.strokeStyle = '#000000';
+      ctx.strokeStyle = strokeColor;
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
     };
 
-    // Create debounced version of the update function
-    const debouncedUpdate = debounce(updateCanvasSize, 100);
-
     // Initial setup
     updateCanvasSize();
     
     // Update on resize and scroll
-    window.addEventListener('resize', debouncedUpdate);
-    window.addEventListener('scroll', debouncedUpdate);
-
-    // Create a mutation observer to watch for DOM changes
-    const observer = new MutationObserver((mutations) => {
-      // Ignore mutations to the canvas itself and its children
-      const relevantMutations = mutations.filter(mutation => {
-        const target = mutation.target as HTMLElement;
-        return !canvas.contains(target) && target !== canvas;
-      });
-
-      if (relevantMutations.length === 0) return;
-
-      // Check if any mutations affect size
-      const shouldUpdate = relevantMutations.some(mutation => {
-        const target = mutation.target as HTMLElement;
-        return mutation.type === 'childList' || 
-               (mutation.type === 'attributes' && 
-                (mutation.attributeName === 'style' || 
-                 mutation.attributeName === 'class'));
-      });
-      
-      if (shouldUpdate) {
-        debouncedUpdate();
-      }
-    });
-
-    // Start observing the document body for DOM changes
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['style', 'class'] // Only watch style and class changes
-    });
+    window.addEventListener('resize', updateCanvasSize);
+    window.addEventListener('scroll', updateCanvasSize);
 
     return () => {
-      window.removeEventListener('resize', debouncedUpdate);
-      window.removeEventListener('scroll', debouncedUpdate);
-      observer.disconnect();
+      window.removeEventListener('resize', updateCanvasSize);
+      window.removeEventListener('scroll', updateCanvasSize);
     };
-  }, []);
+  }, [strokeColor]);
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.closePath();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    
+    setIsDrawing(false);
+    isMouseDown.current = false;
+    didDrawInStroke.current = false;
+  };
 
   // Add spacebar and E key handling
   useEffect(() => {
