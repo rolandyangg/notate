@@ -11,7 +11,7 @@ export const initialContent = [
     "content": [
       {
         "type": "text",
-        "text": "Welcome To DrawNote",
+        "text": "Welcome To Notate",
         "styles": {}
       }
     ],
