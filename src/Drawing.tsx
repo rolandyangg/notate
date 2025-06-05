@@ -22,7 +22,8 @@ const drawingBlockSpec = {
   propSchema: {
     canvasData: { default: "" },
     width: { default: 800 },
-    height: { default: 400 }
+    height: { default: 400 },
+    penColor: { default: "#333" }
   },
   content: "none" as const,
 };
@@ -65,7 +66,7 @@ export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundIm
       width: block?.props?.width || 800,
       height: block?.props?.height || 400
     }));
-    const [brushColor, setBrushColor] = useState("#333");
+    const [brushColor, setBrushColor] = useState(block?.props?.penColor || "#333");
     const [brushSize, setBrushSize] = useState(2);
     const [tool, setTool] = useState("pen");
     const [isHovered, setIsHovered] = useState(false);
@@ -1453,7 +1454,17 @@ export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundIm
             <input
               type="color"
               value={brushColor}
-              onChange={(e) => setBrushColor(e.target.value)}
+              onChange={(e) => {
+                setBrushColor(e.target.value);
+                if (editor && block) {
+                  editor.updateBlock(block, {
+                    props: {
+                      ...block.props,
+                      penColor: e.target.value
+                    }
+                  });
+                }
+              }}
               style={{
                 width: 32,
                 height: 32,
