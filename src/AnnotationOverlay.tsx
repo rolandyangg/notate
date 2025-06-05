@@ -214,7 +214,6 @@ export const AnnotationOverlay = ({
     const editorElement = document.querySelector('.blocknote-editor');
     if (!editorElement) return;
 
-    const editorRect = editorElement.getBoundingClientRect();
     const dx = e.clientX - dragState.startX;
     const dy = e.clientY - dragState.startY;
 
