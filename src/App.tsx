@@ -60,12 +60,16 @@ const getCustomSlashMenuItems = (editor: BlockNoteEditor) => [
     !["Image", "Video", "Audio", "File", "Emoji"].includes(item.title))
 ];
 
+// Create a filtered version of defaultBlockSpecs without the image block
+const { image: _, ...filteredSpecs } = defaultBlockSpecs;
+
+// Create schema with filtered block specs and our custom blocks
 const schema = BlockNoteSchema.create({
   blockSpecs: {
-    ...defaultBlockSpecs,
+    ...filteredSpecs,
     drawing: Drawing,
     imageUpload: Image
-  }
+  } as any
 });
 
 interface Annotation {
