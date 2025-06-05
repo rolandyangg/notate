@@ -14,7 +14,7 @@ import {
   SuggestionMenuController,
   useCreateBlockNote,
 } from "@blocknote/react";
-import { HiPencilAlt, HiPhotograph } from "react-icons/hi"; // drawing icon
+import { HiPencilAlt, HiPhotograph, HiSave, HiUpload, HiQuestionMarkCircle } from "react-icons/hi"; // drawing icon, save icon
 import { Drawing } from "./Drawing.tsx"
 import { Image } from "./Image";
 import { AnnotationOverlay } from "./AnnotationOverlay";
@@ -715,50 +715,80 @@ function App() {
       <div style={{ 
         position: 'fixed', 
         bottom: '20px', 
-        right: '20px', 
+        right: '24px', 
         zIndex: 1000,
         display: 'flex',
         flexDirection: 'column',
         gap: '10px'
       }}>
         <button
-          onClick={() => setShowTutorial(true)}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#9C27B0',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-          }}
-        >
-          Show Help
-        </button>
-        <button
           onClick={handleExport}
           style={{
-            padding: '8px 16px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
+            background: 'none',
+            // border: '2px solid #5A5A5A',
             border: 'none',
-            borderRadius: '4px',
+            padding: 0,
+            margin: 0,
             cursor: 'pointer',
+            outline: 'none',
+            borderRadius: '12px',
+            width: 56,
+            height: 56,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+            backgroundColor: '#fff',
           }}
+          aria-label="Export Notes"
         >
-          Export Notes
+          <HiSave size={24} color="#5A5A5A" />
         </button>
         <button
           onClick={() => fileInputRef.current?.click()}
           style={{
-            padding: '8px 16px',
-            backgroundColor: '#2196F3',
-            color: 'white',
+            background: 'none',
+            // border: '2px solid #5A5A5A',
             border: 'none',
-            borderRadius: '4px',
+            padding: 0,
+            margin: 0,
             cursor: 'pointer',
+            outline: 'none',
+            borderRadius: '12px',
+            width: 56,
+            height: 56,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+            backgroundColor: '#fff',
           }}
+          aria-label="Import Notes"
         >
-          Import Notes
+          <HiUpload size={24} color="#5A5A5A" />
+        </button>
+        <button
+          onClick={() => setShowTutorial(true)}
+          style={{
+            background: 'none',
+            // border: '2px solid #5A5A5A',
+            border: 'none',
+            padding: 0,
+            margin: 0,
+            cursor: 'pointer',
+            outline: 'none',
+            borderRadius: '12px',
+            width: 56,
+            height: 56,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+            backgroundColor: '#fff',
+          }}
+          aria-label="Show Help"
+        >
+          <HiQuestionMarkCircle size={24} color="#5A5A5A" />
         </button>
         <input
           ref={fileInputRef}
