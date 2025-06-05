@@ -22,8 +22,7 @@ const drawingBlockSpec = {
   propSchema: {
     canvasData: { default: "" },
     width: { default: 800 },
-    height: { default: 400 },
-    backgroundImage: { default: "" }
+    height: { default: 400 }
   },
   content: "none" as const,
 };
@@ -37,6 +36,13 @@ interface TextElement {
   color: string;
   isEditing: boolean;
   isSelected: boolean;
+}
+
+interface CanvasState {
+  imageData: string;
+  width: number;
+  height: number;
+  penColor: string;
 }
 
 export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundImage?: string, block?: any, editor?: any }) => {
@@ -108,9 +114,8 @@ export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundIm
           const ctx = canvasRef.current.getContext("2d")!;
       
           const initializeCanvas = async () => {
-            // If there's a new background image, use it
-            if (backgroundImage && backgroundImage !== block?.props?.backgroundImage) {
-              setBrushColor("#ff0000");
+            // Only handle new background image if one is being added for the first time
+            if (backgroundImage && !block?.props?.canvasData) {
               const img = new Image();
               await new Promise((resolve) => {
                 img.onload = () => {
@@ -120,40 +125,41 @@ export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundIm
                   };
                   setSize(newSize);
                   
-                  // Store background image reference
-                  backgroundImageRef.current = backgroundImage;
+                  // Set initial pen color to red for images
+                  setBrushColor("#ff0000");
                   
-                  // Update block props with new size and background image
-                  if (editor && block) {
-                    editor.updateBlock(block, {
-                      props: {
-                        ...block.props,
-                        width: newSize.width,
-                        height: newSize.height,
-                        backgroundImage: backgroundImage,
-                        canvasData: "" // Reset canvas data when new background is set
-                      }
-                    });
-                  }
+                  // Update canvas dimensions
+                  canvasRef.current!.width = newSize.width;
+                  canvasRef.current!.height = newSize.height;
                   
+                  // Draw the background image
                   ctx.clearRect(0, 0, newSize.width, newSize.height);
                   ctx.drawImage(img, 0, 0, newSize.width, newSize.height);
+                  
+                  // Save the initial state with background
                   saveState();
                   resolve(null);
                 };
                 img.src = backgroundImage;
               });
             }
-            // If there's existing canvas data, restore it
+            // If there's existing canvas data, just restore that complete state
             else if (block?.props?.canvasData) {
-              // Store background image reference
-              backgroundImageRef.current = block.props.backgroundImage || null;
-              
               const img = new Image();
               await new Promise((resolve) => {
                 img.onload = () => {
-                  ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-                  ctx.drawImage(img, 0, 0);
+                  // Update canvas dimensions from props
+                  const newSize = {
+                    width: block.props.width || 800,
+                    height: block.props.height || 400
+                  };
+                  setSize(newSize);
+                  canvasRef.current!.width = newSize.width;
+                  canvasRef.current!.height = newSize.height;
+                  
+                  // Draw the complete saved canvas state
+                  ctx.clearRect(0, 0, newSize.width, newSize.height);
+                  ctx.drawImage(img, 0, 0, newSize.width, newSize.height);
                   lastSavedSnapshot.current = block.props.canvasData;
                   undoStack.current = [block.props.canvasData];
                   resolve(null);
@@ -161,21 +167,13 @@ export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundIm
                 img.src = block.props.canvasData;
               });
             }
-            // If there's a stored background image but no canvas data, restore the background
-            else if (block?.props?.backgroundImage) {
-              // Store background image reference
-              backgroundImageRef.current = block.props.backgroundImage;
-              
-              const img = new Image();
-              await new Promise((resolve) => {
-                img.onload = () => {
-                  ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-                  ctx.drawImage(img, 0, 0);
-                  saveState();
-                  resolve(null);
-                };
-                img.src = block.props.backgroundImage;
-              });
+            // Initialize empty canvas with default size
+            else {
+              const defaultSize = { width: 800, height: 400 };
+              setSize(defaultSize);
+              canvasRef.current!.width = defaultSize.width;
+              canvasRef.current!.height = defaultSize.height;
+              ctx.clearRect(0, 0, defaultSize.width, defaultSize.height);
             }
           };
 
@@ -184,31 +182,19 @@ export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundIm
       }, [backgroundImage, block?.id]);
       
   
-    // Add effect to restore canvas data from props
-    useEffect(() => {
-      if (canvasRef.current && block?.props?.canvasData) {
-        const ctx = canvasRef.current.getContext("2d")!;
-        const img = new Image();
-        img.onload = () => {
-          ctx.clearRect(0, 0, canvasRef.current!.width, canvasRef.current!.height);
-          ctx.drawImage(img, 0, 0);
-          saveState();
-        };
-        img.src = block.props.canvasData;
-      }
-    }, [block?.props?.canvasData]);
-      
-  
     const saveState = () => {
       if (!canvasRef.current) return;
 
+      const canvas = canvasRef.current;
       const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvasRef.current.width;
-      tempCanvas.height = canvasRef.current.height;
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
       const tempCtx = tempCanvas.getContext('2d')!;
       
-      tempCtx.drawImage(canvasRef.current, 0, 0);
+      // Draw the current canvas state (includes background and drawings)
+      tempCtx.drawImage(canvas, 0, 0);
       
+      // Add text elements if any
       if (tool === 'text' && textElements.length > 0) {
         textElements.forEach(element => {
           tempCtx.font = `${element.fontSize}px Arial`;
@@ -223,15 +209,13 @@ export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundIm
         redoStack.current = [];
         lastSavedSnapshot.current = dataURL;
 
-        // Update block props with canvas data, size, and preserve background image
+        // Update block props with current canvas state and dimensions
         if (editor && block) {
           editor.updateBlock(block, {
             props: {
-              ...block.props,
               canvasData: dataURL,
-              width: size.width,
-              height: size.height,
-              backgroundImage: block.props.backgroundImage || backgroundImage || ""
+              width: canvas.width,
+              height: canvas.height
             }
           });
         }
@@ -570,8 +554,8 @@ export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundIm
       
       // Store initial state
       const initialState = canvas.toDataURL();
-      const initialWidth = size.width;
-      const initialHeight = size.height;
+      const initialWidth = canvas.width;
+      const initialHeight = canvas.height;
       const aspectRatio = initialWidth / initialHeight;
       const startX = e.clientX;
       const startY = e.clientY;
@@ -581,24 +565,16 @@ export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundIm
       let lastHeight = initialHeight;
 
       const redrawCanvas = async (width: number, height: number) => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Update canvas dimensions
+        canvas.width = width;
+        canvas.height = height;
+        setSize({ width, height });
         
-        // First draw background if exists
-        if (backgroundImageRef.current) {
-          await new Promise<void>((resolve) => {
-            const bgImg = new Image();
-            bgImg.onload = () => {
-              ctx.drawImage(bgImg, 0, 0, width, height);
-              resolve();
-            };
-            bgImg.src = backgroundImageRef.current;
-          });
-        }
-        
-        // Then draw canvas state on top
+        // Draw the resized content
         const img = new Image();
         await new Promise<void>((resolve) => {
           img.onload = () => {
+            ctx.clearRect(0, 0, width, height);
             ctx.drawImage(img, 0, 0, width, height);
             resolve();
           };
@@ -611,20 +587,14 @@ export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundIm
         const newWidth = Math.max(100, initialWidth + delta);
         const newHeight = newWidth / aspectRatio;
 
-        // Only update if size has changed significantly (prevent micro-updates)
         if (Math.abs(newWidth - lastWidth) > 1 || Math.abs(newHeight - lastHeight) > 1) {
           lastWidth = newWidth;
           lastHeight = newHeight;
 
-          // Update size state
-          setSize({ width: newWidth, height: newHeight });
-
-          // Clear any pending resize operation
           if (resizeTimeout) {
             clearTimeout(resizeTimeout);
           }
 
-          // Schedule a new resize operation
           resizeTimeout = setTimeout(() => {
             redrawCanvas(newWidth, newHeight);
           }, 0);
@@ -635,32 +605,12 @@ export const DrawingCanvas = ({ backgroundImage, block, editor }: { backgroundIm
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
 
-        // Clear any pending resize operation
         if (resizeTimeout) {
           clearTimeout(resizeTimeout);
         }
 
-        // Final resize and save
         await redrawCanvas(lastWidth, lastHeight);
-        
-        // Only save state and update block props after the final resize
-        if (editor && block) {
-          const finalState = canvas.toDataURL();
-          editor.updateBlock(block, {
-            props: {
-              ...block.props,
-              canvasData: finalState,
-              width: lastWidth,
-              height: lastHeight,
-              backgroundImage: backgroundImageRef.current !== null ? backgroundImageRef.current : ""
-            }
-          });
-          
-          // Update the undo stack
-          undoStack.current.push(finalState);
-          redoStack.current = [];
-          lastSavedSnapshot.current = finalState;
-        }
+        saveState();
       };
 
       document.addEventListener("mousemove", onMouseMove);
