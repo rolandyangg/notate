@@ -32,14 +32,6 @@ export const ScribbleOverlay = ({
     lastDrawnState.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
   };
 
-  const restoreCanvasState = () => {
-    const canvas = canvasRef.current;
-    if (!canvas || !lastDrawnState.current) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.putImageData(lastDrawnState.current, 0, 0);
-  };
-
   // Save canvas state after each stroke
   useEffect(() => {
     if (!isDrawing && didDrawInStroke.current) {

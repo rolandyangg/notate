@@ -194,15 +194,28 @@ function App() {
       const ctx = scribbleCanvas.getContext('2d');
       if (ctx) {
         const imageData = ctx.getImageData(0, 0, scribbleCanvas.width, scribbleCanvas.height);
+        const editorContainer = document.querySelector('.blocknote-container') as HTMLElement;
+        const editorRect = editorContainer?.getBoundingClientRect();
+        
         scribbleData = {
           width: scribbleCanvas.width,
           height: scribbleCanvas.height,
-          pixelData: Array.from(imageData.data)
+          pixelData: Array.from(imageData.data),
+          viewport: {
+            scrollHeight: document.documentElement.scrollHeight,
+            scrollWidth: document.documentElement.scrollWidth,
+            clientHeight: document.documentElement.clientHeight,
+            clientWidth: document.documentElement.clientWidth,
+            editorHeight: editorRect?.height || 0,
+            editorWidth: editorRect?.width || 0,
+            devicePixelRatio: window.devicePixelRatio
+          }
         };
         console.log('Scribble overlay data:', {
           width: scribbleCanvas.width,
           height: scribbleCanvas.height,
-          pixelDataLength: imageData.data.length
+          pixelDataLength: imageData.data.length,
+          viewport: scribbleData.viewport
         });
       }
     } else {
@@ -559,28 +572,83 @@ function App() {
                   if (scribbleCanvas) {
                     const ctx = scribbleCanvas.getContext('2d');
                     if (ctx) {
-                      // Set canvas dimensions
-                      scribbleCanvas.width = data.scribbleData.width;
-                      scribbleCanvas.height = data.scribbleData.height;
+                      // Calculate scale factors based on viewport changes
+                      const currentViewport = {
+                        scrollHeight: document.documentElement.scrollHeight,
+                        scrollWidth: document.documentElement.scrollWidth,
+                        clientHeight: document.documentElement.clientHeight,
+                        clientWidth: document.documentElement.clientWidth,
+                        devicePixelRatio: window.devicePixelRatio
+                      };
+
+                      const originalViewport = data.scribbleData.viewport;
+                      
+                      // Calculate scaling factors
+                      const heightScale = currentViewport.scrollHeight / originalViewport.scrollHeight;
+                      const widthScale = currentViewport.scrollWidth / originalViewport.scrollWidth;
+                      const dprScale = currentViewport.devicePixelRatio / originalViewport.devicePixelRatio;
+
+                      // Set canvas dimensions accounting for viewport changes
+                      const scaledWidth = data.scribbleData.width * widthScale;
+                      const scaledHeight = data.scribbleData.height * heightScale;
+                      
+                      scribbleCanvas.width = scaledWidth;
+                      scribbleCanvas.height = scaledHeight;
                       
                       // Initialize drawing settings
-                      const dpr = window.devicePixelRatio || 1;
-                      ctx.scale(dpr, dpr);
+                      ctx.scale(currentViewport.devicePixelRatio, currentViewport.devicePixelRatio);
                       ctx.strokeStyle = '#000000';
                       ctx.lineWidth = 2;
                       ctx.lineCap = 'round';
                       ctx.lineJoin = 'round';
-                      
-                      // Create ImageData from the saved pixel data
-                      const imageData = new ImageData(
-                        new Uint8ClampedArray(data.scribbleData.pixelData),
-                        data.scribbleData.width,
-                        data.scribbleData.height
-                      );
 
-                      // Put the image data back on the canvas
-                      ctx.putImageData(imageData, 0, 0);
-                      console.log('Restored scribble overlay data');
+                      // Create a temporary canvas to scale the image data
+                      const tempCanvas = document.createElement('canvas');
+                      tempCanvas.width = data.scribbleData.width;
+                      tempCanvas.height = data.scribbleData.height;
+                      const tempCtx = tempCanvas.getContext('2d');
+                      
+                      if (tempCtx) {
+                        // Put original image data into temp canvas
+                        const imageData = new ImageData(
+                          new Uint8ClampedArray(data.scribbleData.pixelData),
+                          data.scribbleData.width,
+                          data.scribbleData.height
+                        );
+                        tempCtx.putImageData(imageData, 0, 0);
+
+                        // Scale and draw the image onto the main canvas
+                        ctx.save();
+                        ctx.scale(1/currentViewport.devicePixelRatio, 1/currentViewport.devicePixelRatio);
+                        ctx.drawImage(
+                          tempCanvas, 
+                          0, 
+                          0, 
+                          data.scribbleData.width, 
+                          data.scribbleData.height, 
+                          0, 
+                          0, 
+                          scaledWidth * currentViewport.devicePixelRatio, 
+                          scaledHeight * currentViewport.devicePixelRatio
+                        );
+                        ctx.restore();
+
+                        console.log('Restored scribble overlay data with viewport scaling:', {
+                          originalDimensions: {
+                            width: data.scribbleData.width,
+                            height: data.scribbleData.height
+                          },
+                          scaledDimensions: {
+                            width: scaledWidth,
+                            height: scaledHeight
+                          },
+                          scaleFactors: {
+                            width: widthScale,
+                            height: heightScale,
+                            dpr: dprScale
+                          }
+                        });
+                      }
                     }
                   } else {
                     console.error('Scribble canvas not found for restoration');
