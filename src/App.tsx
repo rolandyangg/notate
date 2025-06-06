@@ -103,6 +103,13 @@ function App() {
       const imageItem = items.find(item => item.type.startsWith('image'));
       
       if (imageItem) {
+        // Check if we're pasting onto an imageUpload block
+        const currentBlock = editor.getTextCursorPosition()?.block;
+        if (currentBlock?.type === 'imageUpload') {
+          // Let the imageUpload block handle it
+          return;
+        }
+
         e.preventDefault();
         const blob = imageItem.getAsFile();
         if (!blob) return;
