@@ -22,45 +22,11 @@ import {
     const [imageError, setImageError] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState(false);
 
-    const validateAndUpdateImage = (dataUrl: string) => {
-      return new Promise<void>((resolve, reject) => {
-        const img = document.createElement('img');
-        img.onload = () => {
-          editor.updateBlock(block, {
-            props: {
-              ...block.props,
-              src: dataUrl,
-              canvasData: "",
-              width: img.naturalWidth,
-              height: img.naturalHeight
-            }
-          });
-          setImageError(null);
-          resolve();
-        };
-        img.onerror = () => {
-          reject(new Error("Failed to load image"));
-        };
-        img.src = dataUrl;
-      });
-    };
-
-    // Handle clipboard paste events
-    useEffect(() => {
-      const handlePaste = async (e: ClipboardEvent) => {
-        // Check if the paste event target is within our component
-        if (!containerRef.current?.contains(e.target as Node)) return;
-
-        const items = Array.from(e.clipboardData?.items || []);
-        const imageItem = items.find(item => item.type.startsWith('image'));
-        
-        if (imageItem) {
-          e.preventDefault();
-          const blob = imageItem.getAsFile();
-          if (!blob) return;
-
-          try {
-            const dataUrl = await new Promise<string>((resolve, reject) => {
+    const validateAndUpdateImage = async (input: string | Blob) => {
+      try {
+        // Convert Blob to data URL if needed
+        const dataUrl = input instanceof Blob 
+          ? await new Promise<string>((resolve, reject) => {
               const reader = new FileReader();
               reader.onload = () => {
                 if (typeof reader.result === 'string') {
@@ -70,20 +36,36 @@ import {
                 }
               };
               reader.onerror = () => reject(reader.error);
-              reader.readAsDataURL(blob);
+              reader.readAsDataURL(input);
+            })
+          : input;
+
+        // Create a new image and wait for it to load
+        await new Promise<void>((resolve, reject) => {
+          const img = document.createElement('img');
+          img.onload = () => {
+            editor.updateBlock(block, {
+              props: {
+                ...block.props,
+                src: dataUrl,
+                canvasData: "",
+                width: img.naturalWidth,
+                height: img.naturalHeight
+              }
             });
-
-            await validateAndUpdateImage(dataUrl);
-          } catch (error) {
-            console.error("Error processing pasted image:", error);
-            setImageError("Failed to process pasted image");
-          }
-        }
-      };
-
-      document.addEventListener('paste', handlePaste);
-      return () => document.removeEventListener('paste', handlePaste);
-    }, [block, editor]);
+            setImageError(null);
+            resolve();
+          };
+          img.onerror = () => reject(new Error("Failed to load image"));
+          img.crossOrigin = "anonymous";
+          img.src = dataUrl;
+        });
+      } catch (error) {
+        console.error("Error processing image:", error);
+        setImageError("Failed to process image");
+        throw error;
+      }
+    };
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -95,20 +77,7 @@ import {
       }
   
       try {
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            if (typeof reader.result === 'string') {
-              resolve(reader.result);
-            } else {
-              reject(new Error("Invalid file data"));
-            }
-          };
-          reader.onerror = () => reject(reader.error);
-          reader.readAsDataURL(file);
-        });
-
-        await validateAndUpdateImage(dataUrl);
+        await validateAndUpdateImage(file);
       } catch (error) {
         console.error("Error processing uploaded image:", error);
         setImageError("Failed to process uploaded image");
@@ -121,23 +90,88 @@ import {
   
     const uploaded = Boolean(block.props.src);
 
-    // Validate the existing image if it's already uploaded
+    // Handle clipboard paste events
     useEffect(() => {
-      if (uploaded && block.props.src) {
-        validateAndUpdateImage(block.props.src).catch(() => {
-          setImageError("Failed to load image");
-        });
-      }
-    }, [block.props.src]);
+      const handlePaste = async (e: ClipboardEvent) => {
+        if (!containerRef.current?.contains(e.target as Node)) return;
+
+        const items = Array.from(e.clipboardData?.items || []);
+        const imageItem = items.find(item => item.type.startsWith('image'));
+        
+        if (imageItem) {
+          e.preventDefault();
+          const blob = imageItem.getAsFile();
+          if (!blob) return;
+
+          try {
+            await validateAndUpdateImage(blob);
+          } catch (error) {
+            console.error("Error processing pasted image:", error);
+            setImageError("Failed to process pasted image");
+          }
+        }
+      };
+
+      document.addEventListener('paste', handlePaste);
+      return () => document.removeEventListener('paste', handlePaste);
+    }, [block, editor]);
 
     // Handle drag and drop events
     useEffect(() => {
+      const handleDrop = async (e: DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        if (uploaded) return;
+
+        const items = Array.from(e.dataTransfer?.items || []);
+        const files = Array.from(e.dataTransfer?.files || []);
+        
+        // Try to get image from items first
+        const imageItem = items.find(item => item.type.startsWith('image'));
+        if (imageItem) {
+          const file = imageItem.getAsFile();
+          if (file) {
+            try {
+              await validateAndUpdateImage(file);
+              return;
+            } catch (error) {
+              console.error("Error processing dropped image:", error);
+            }
+          }
+        }
+
+        // Then try files
+        const imageFile = files.find(file => file.type.startsWith('image/'));
+        if (imageFile) {
+          try {
+            await validateAndUpdateImage(imageFile);
+            return;
+          } catch (error) {
+            console.error("Error processing dropped image file:", error);
+          }
+        }
+
+        // Finally try URL
+        const url = e.dataTransfer?.getData('text/uri-list') || e.dataTransfer?.getData('text/plain');
+        if (url && url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+          try {
+            // For URLs, we need to fetch the image first to handle CORS properly
+            const response = await fetch(url, { mode: 'cors' });
+            const blob = await response.blob();
+            await validateAndUpdateImage(blob);
+          } catch (error) {
+            console.error("Error processing dropped image URL:", error);
+            setImageError("Failed to process dropped image URL");
+          }
+        }
+      };
+
       const handleDragEnter = (e: DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!uploaded) {
-          setIsDragging(true);
-        }
+        if (!uploaded) setIsDragging(true);
       };
 
       const handleDragLeave = (e: DragEvent) => {
@@ -155,81 +189,6 @@ import {
         e.stopPropagation();
       };
 
-      const handleDrop = async (e: DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-
-        if (uploaded) return;
-
-        const items = Array.from(e.dataTransfer?.items || []);
-        const files = Array.from(e.dataTransfer?.files || []);
-        
-        // First try to get image from items (for URLs)
-        const imageItem = items.find(item => item.type.startsWith('image'));
-        if (imageItem) {
-          const file = imageItem.getAsFile();
-          if (file) {
-            try {
-              const dataUrl = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => {
-                  if (typeof reader.result === 'string') {
-                    resolve(reader.result);
-                  } else {
-                    reject(new Error("Invalid file data"));
-                  }
-                };
-                reader.onerror = () => reject(reader.error);
-                reader.readAsDataURL(file);
-              });
-
-              await validateAndUpdateImage(dataUrl);
-            } catch (error) {
-              console.error("Error processing dropped image:", error);
-              setImageError("Failed to process dropped image");
-            }
-            return;
-          }
-        }
-
-        // Then try to get image from files
-        const imageFile = files.find(file => file.type.startsWith('image/'));
-        if (imageFile) {
-          try {
-            const dataUrl = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => {
-                if (typeof reader.result === 'string') {
-                  resolve(reader.result);
-                } else {
-                  reject(new Error("Invalid file data"));
-                }
-              };
-              reader.onerror = () => reject(reader.error);
-              reader.readAsDataURL(imageFile);
-            });
-
-            await validateAndUpdateImage(dataUrl);
-          } catch (error) {
-            console.error("Error processing dropped image file:", error);
-            setImageError("Failed to process dropped image");
-          }
-          return;
-        }
-
-        // Finally try to get image from URL
-        const url = e.dataTransfer?.getData('text/uri-list') || e.dataTransfer?.getData('text/plain');
-        if (url && url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-          try {
-            await validateAndUpdateImage(url);
-          } catch (error) {
-            console.error("Error processing dropped image URL:", error);
-            setImageError("Failed to process dropped image URL");
-          }
-        }
-      };
-
       const container = containerRef.current;
       if (container) {
         container.addEventListener('dragenter', handleDragEnter);
@@ -244,7 +203,7 @@ import {
           container.removeEventListener('drop', handleDrop);
         };
       }
-    }, [uploaded]);
+    }, [uploaded, block, editor]);
   
     if (imageError) {
       return (
