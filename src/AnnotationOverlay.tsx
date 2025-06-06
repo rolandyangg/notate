@@ -435,6 +435,9 @@ export const AnnotationOverlay = ({
                 color: 'white',
                 padding: '10px 20px',
                 borderRadius: '4px',
+                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                fontSize: '14px',
+                fontWeight: 500,
               }}
             >
               Click and drag to add a comment

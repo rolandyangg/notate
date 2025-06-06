@@ -387,9 +387,12 @@ export const ScribbleOverlay = ({
                 padding: '10px 20px',
                 borderRadius: '4px',
                 pointerEvents: 'none',
+                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                fontSize: '14px',
+                fontWeight: 500,
               }}
             >
-            Draw anywhere on the screen <br /> Press "space" to draw <br /> Press "e" to erase <br /> Press "escape" to exit
+              Draw anywhere on the screen <br /> Press "space" to draw <br /> Press "e" to erase <br /> Press "escape" to exit
             </div> }
           <div
             style={{
@@ -444,6 +447,8 @@ export const ScribbleOverlay = ({
                       color: 'white',
                       borderRadius: '6px',
                       fontSize: '12px',
+                      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                      fontWeight: 500,
                       whiteSpace: 'nowrap',
                       pointerEvents: 'none',
                       zIndex: 1300,
@@ -507,6 +512,8 @@ export const ScribbleOverlay = ({
                       color: 'white',
                       borderRadius: '6px',
                       fontSize: '12px',
+                      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                      fontWeight: 500,
                       whiteSpace: 'nowrap',
                       pointerEvents: 'none',
                       zIndex: 1300,
