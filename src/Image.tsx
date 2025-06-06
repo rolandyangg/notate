@@ -21,28 +21,51 @@ import {
     const containerRef = useRef<HTMLDivElement>(null);
     const [imageError, setImageError] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const validateAndUpdateImage = (dataUrl: string) => {
-      return new Promise<void>((resolve, reject) => {
-        const img = document.createElement('img');
-        img.onload = () => {
-          editor.updateBlock(block, {
-            props: {
-              ...block.props,
-              src: dataUrl,
-              canvasData: "",
-              width: img.naturalWidth,
-              height: img.naturalHeight
-            }
-          });
-          setImageError(null);
-          resolve();
-        };
-        img.onerror = () => {
-          reject(new Error("Failed to load image"));
-        };
-        img.src = dataUrl;
-      });
+    const validateAndUpdateImage = async (dataUrl: string) => {
+      setIsLoading(true);
+      try {
+        // Create a new image and wait for it to load
+        await new Promise<void>((resolve, reject) => {
+          const img = document.createElement('img');
+          
+          const timeoutId = setTimeout(() => {
+            reject(new Error("Image loading timed out"));
+          }, 10000); // 10 second timeout
+
+          img.onload = () => {
+            clearTimeout(timeoutId);
+            // Update the block with a slight delay to ensure the editor is ready
+            setTimeout(() => {
+              editor.updateBlock(block, {
+                type: "imageUpload",
+                props: {
+                  src: dataUrl,
+                  canvasData: "",
+                  width: img.naturalWidth,
+                  height: img.naturalHeight
+                }
+              });
+              setImageError(null);
+              setIsLoading(false);
+              resolve();
+            }, 100);
+          };
+
+          img.onerror = () => {
+            clearTimeout(timeoutId);
+            reject(new Error("Failed to load image"));
+          };
+
+          img.src = dataUrl;
+        });
+      } catch (error) {
+        console.error("Error processing image:", error);
+        setImageError("Failed to process image. Please try again.");
+        setIsLoading(false);
+        throw error;
+      }
     };
 
     // Handle clipboard paste events
@@ -67,23 +90,33 @@ import {
           if (!blob) return;
 
           try {
+            setIsLoading(true);
             const dataUrl = await new Promise<string>((resolve, reject) => {
               const reader = new FileReader();
+              const timeoutId = setTimeout(() => {
+                reject(new Error("File reading timed out"));
+              }, 5000); // 5 second timeout
+
               reader.onload = () => {
+                clearTimeout(timeoutId);
                 if (typeof reader.result === 'string') {
                   resolve(reader.result);
                 } else {
                   reject(new Error("Invalid file data"));
                 }
               };
-              reader.onerror = () => reject(reader.error);
+              reader.onerror = () => {
+                clearTimeout(timeoutId);
+                reject(reader.error);
+              };
               reader.readAsDataURL(blob);
             });
 
             await validateAndUpdateImage(dataUrl);
           } catch (error) {
             console.error("Error processing pasted image:", error);
-            setImageError("Failed to process pasted image");
+            setImageError("Failed to process pasted image. Please try again.");
+            setIsLoading(false);
           }
         }
       };
@@ -103,23 +136,33 @@ import {
       }
   
       try {
+        setIsLoading(true);
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
+          const timeoutId = setTimeout(() => {
+            reject(new Error("File reading timed out"));
+          }, 5000); // 5 second timeout
+
           reader.onload = () => {
+            clearTimeout(timeoutId);
             if (typeof reader.result === 'string') {
               resolve(reader.result);
             } else {
               reject(new Error("Invalid file data"));
             }
           };
-          reader.onerror = () => reject(reader.error);
+          reader.onerror = () => {
+            clearTimeout(timeoutId);
+            reject(reader.error);
+          };
           reader.readAsDataURL(file);
         });
 
         await validateAndUpdateImage(dataUrl);
       } catch (error) {
         console.error("Error processing uploaded image:", error);
-        setImageError("Failed to process uploaded image");
+        setImageError("Failed to process uploaded image. Please try again.");
+        setIsLoading(false);
       }
     };
   
@@ -335,6 +378,8 @@ import {
             backgroundColor: isDragging ? "#e3f2fd" : "#ffffff",
             textAlign: "left",
             transition: "all 0.2s ease-in-out",
+            opacity: isLoading ? 0.7 : 1,
+            pointerEvents: isLoading ? "none" : "auto",
           }}
         >
           <div style={{ 
@@ -342,30 +387,32 @@ import {
             marginBottom: '10px', 
             color: isDragging ? '#1976d2' : '#666'
           }}>
-            {isDragging ? 'Drop image here' : 'Click to upload, paste, or drag an image here'}
+            {isLoading ? 'Processing image...' : (isDragging ? 'Drop image here' : 'Click to upload, paste, or drag an image here')}
           </div>
           <button
             onClick={handleUploadClick}
+            disabled={isLoading}
             style={{
               fontFamily: "'Inter', sans-serif",
               fontSize: 14,
               fontWeight: 500,
               backgroundColor: "#fff",
-              color: "#333",
+              color: isLoading ? "#999" : "#333",
               border: "1px solid #ccc",
               borderRadius: 8,
               padding: "10px 16px",
-              cursor: "pointer",
+              cursor: isLoading ? "not-allowed" : "pointer",
               transition: "background-color 0.2s ease-in-out",
+              opacity: isLoading ? 0.7 : 1,
             }}
             onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor = "#f2f2f2")
+              !isLoading && (e.currentTarget.style.backgroundColor = "#f2f2f2")
             }
             onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundColor = "#fff")
+              !isLoading && (e.currentTarget.style.backgroundColor = "#fff")
             }
           >
-            Upload Image
+            {isLoading ? 'Processing...' : 'Upload Image'}
           </button>
 
           <input
@@ -374,6 +421,7 @@ import {
             accept="image/*"
             onChange={handleFileChange}
             style={{ display: "none" }}
+            disabled={isLoading}
           />
         </div>
       );
