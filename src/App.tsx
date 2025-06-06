@@ -134,6 +134,137 @@ function App() {
     return () => document.removeEventListener('paste', handlePaste);
   }, [editor]);
 
+  // Add drag and drop handler for the editor
+  useEffect(() => {
+    const handleDragOver = (e: Event) => {
+      const dragEvent = e as DragEvent;
+      dragEvent.preventDefault();
+      dragEvent.stopPropagation();
+    };
+
+    const handleDrop = async (e: Event) => {
+      const dragEvent = e as DragEvent;
+      dragEvent.preventDefault();
+      dragEvent.stopPropagation();
+
+      // Get the current block based on drop position
+      const editorElement = document.querySelector('.blocknote-editor');
+      if (!editorElement) return;
+
+      const editorRect = editorElement.getBoundingClientRect();
+      const dropY = dragEvent.clientY - editorRect.top + editorElement.scrollTop;
+
+      // Find the block closest to the drop position
+      const blocks = editor.document;
+      const blockElements = editorElement.querySelectorAll('.bn-block');
+      let targetBlock = blocks[0];
+      let minDistance = Infinity;
+
+      blockElements.forEach((element, index) => {
+        const rect = element.getBoundingClientRect();
+        const blockMiddle = rect.top + rect.height / 2 - editorRect.top;
+        const distance = Math.abs(dropY - blockMiddle);
+        if (distance < minDistance) {
+          minDistance = distance;
+          targetBlock = blocks[index];
+        }
+      });
+
+      if (!targetBlock) return;
+
+      const items = Array.from(dragEvent.dataTransfer?.items || []);
+      const files = Array.from(dragEvent.dataTransfer?.files || []);
+      
+      // First try to get image from items (for URLs)
+      const imageItem = items.find(item => item.type.startsWith('image'));
+      if (imageItem) {
+        const file = imageItem.getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === 'string') {
+              // Get the drop position relative to the target block
+              const blockElement = blockElements[blocks.indexOf(targetBlock)];
+              const blockRect = blockElement.getBoundingClientRect();
+              const dropPosition = dropY > blockRect.top + blockRect.height / 2 ? "after" : "before";
+
+              editor.insertBlocks(
+                [{
+                  type: "imageUpload",
+                  props: {
+                    src: reader.result
+                  }
+                } as unknown as PartialBlock],
+                targetBlock,
+                dropPosition
+              );
+            }
+          };
+          reader.readAsDataURL(file);
+          return;
+        }
+      }
+
+      // Then try to get image from files
+      const imageFile = files.find(file => file.type.startsWith('image/'));
+      if (imageFile) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            // Get the drop position relative to the target block
+            const blockElement = blockElements[blocks.indexOf(targetBlock)];
+            const blockRect = blockElement.getBoundingClientRect();
+            const dropPosition = dropY > blockRect.top + blockRect.height / 2 ? "after" : "before";
+
+            editor.insertBlocks(
+              [{
+                type: "imageUpload",
+                props: {
+                  src: reader.result
+                }
+              } as unknown as PartialBlock],
+              targetBlock,
+              dropPosition
+            );
+          }
+        };
+        reader.readAsDataURL(imageFile);
+        return;
+      }
+
+      // Finally try to get image from URL
+      const url = dragEvent.dataTransfer?.getData('text/uri-list') || dragEvent.dataTransfer?.getData('text/plain');
+      if (url && url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+        // Get the drop position relative to the target block
+        const blockElement = blockElements[blocks.indexOf(targetBlock)];
+        const blockRect = blockElement.getBoundingClientRect();
+        const dropPosition = dropY > blockRect.top + blockRect.height / 2 ? "after" : "before";
+
+        editor.insertBlocks(
+          [{
+            type: "imageUpload",
+            props: {
+              src: url
+            }
+          } as unknown as PartialBlock],
+          targetBlock,
+          dropPosition
+        );
+      }
+    };
+
+    const editorElement = document.querySelector('.blocknote-editor');
+    if (editorElement) {
+      editorElement.addEventListener('dragover', handleDragOver);
+      editorElement.addEventListener('drop', handleDrop);
+
+      return () => {
+        editorElement.removeEventListener('dragover', handleDragOver);
+        editorElement.removeEventListener('drop', handleDrop);
+      };
+    }
+  }, [editor]);
+
   // Wrapper functions to maintain compatibility with existing components
   const setIsAnnotationMode = (value: boolean | ((prev: boolean) => boolean)) => {
     if (typeof value === 'function') {

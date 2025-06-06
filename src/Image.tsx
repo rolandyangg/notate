@@ -20,6 +20,7 @@ import {
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [imageError, setImageError] = useState<string | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
 
     const validateAndUpdateImage = (dataUrl: string) => {
       return new Promise<void>((resolve, reject) => {
@@ -128,6 +129,122 @@ import {
         });
       }
     }, [block.props.src]);
+
+    // Handle drag and drop events
+    useEffect(() => {
+      const handleDragEnter = (e: DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!uploaded) {
+          setIsDragging(true);
+        }
+      };
+
+      const handleDragLeave = (e: DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const target = e.currentTarget as HTMLElement;
+        const relatedTarget = e.relatedTarget as Node;
+        if (target && !target.contains(relatedTarget)) {
+          setIsDragging(false);
+        }
+      };
+
+      const handleDragOver = (e: DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+      };
+
+      const handleDrop = async (e: DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        if (uploaded) return;
+
+        const items = Array.from(e.dataTransfer?.items || []);
+        const files = Array.from(e.dataTransfer?.files || []);
+        
+        // First try to get image from items (for URLs)
+        const imageItem = items.find(item => item.type.startsWith('image'));
+        if (imageItem) {
+          const file = imageItem.getAsFile();
+          if (file) {
+            try {
+              const dataUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  if (typeof reader.result === 'string') {
+                    resolve(reader.result);
+                  } else {
+                    reject(new Error("Invalid file data"));
+                  }
+                };
+                reader.onerror = () => reject(reader.error);
+                reader.readAsDataURL(file);
+              });
+
+              await validateAndUpdateImage(dataUrl);
+            } catch (error) {
+              console.error("Error processing dropped image:", error);
+              setImageError("Failed to process dropped image");
+            }
+            return;
+          }
+        }
+
+        // Then try to get image from files
+        const imageFile = files.find(file => file.type.startsWith('image/'));
+        if (imageFile) {
+          try {
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                if (typeof reader.result === 'string') {
+                  resolve(reader.result);
+                } else {
+                  reject(new Error("Invalid file data"));
+                }
+              };
+              reader.onerror = () => reject(reader.error);
+              reader.readAsDataURL(imageFile);
+            });
+
+            await validateAndUpdateImage(dataUrl);
+          } catch (error) {
+            console.error("Error processing dropped image file:", error);
+            setImageError("Failed to process dropped image");
+          }
+          return;
+        }
+
+        // Finally try to get image from URL
+        const url = e.dataTransfer?.getData('text/uri-list') || e.dataTransfer?.getData('text/plain');
+        if (url && url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+          try {
+            await validateAndUpdateImage(url);
+          } catch (error) {
+            console.error("Error processing dropped image URL:", error);
+            setImageError("Failed to process dropped image URL");
+          }
+        }
+      };
+
+      const container = containerRef.current;
+      if (container) {
+        container.addEventListener('dragenter', handleDragEnter);
+        container.addEventListener('dragleave', handleDragLeave);
+        container.addEventListener('dragover', handleDragOver);
+        container.addEventListener('drop', handleDrop);
+
+        return () => {
+          container.removeEventListener('dragenter', handleDragEnter);
+          container.removeEventListener('dragleave', handleDragLeave);
+          container.removeEventListener('dragover', handleDragOver);
+          container.removeEventListener('drop', handleDrop);
+        };
+      }
+    }, [uploaded]);
   
     if (imageError) {
       return (
@@ -205,15 +322,19 @@ import {
             margin: "20px",
             padding: 20,
             borderRadius: 12,
-            border: "1px solid #e0e0e0",
+            border: isDragging ? "2px dashed #2196F3" : "1px solid #e0e0e0",
             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
-            backgroundColor: "#ffffff",
+            backgroundColor: isDragging ? "#e3f2fd" : "#ffffff",
             textAlign: "left",
-            transition: "box-shadow 0.2s ease-in-out",
+            transition: "all 0.2s ease-in-out",
           }}
         >
-          <div style={{ textAlign: 'center', marginBottom: '10px', color: '#666' }}>
-            Click to upload or paste an image from clipboard
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: '10px', 
+            color: isDragging ? '#1976d2' : '#666'
+          }}>
+            {isDragging ? 'Drop image here' : 'Click to upload, paste, or drag an image here'}
           </div>
           <button
             onClick={handleUploadClick}
