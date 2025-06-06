@@ -107,32 +107,80 @@ function App() {
         const blob = imageItem.getAsFile();
         if (!blob) return;
 
-        const reader = new FileReader();
-        reader.onload = () => {
-          if (typeof reader.result === 'string') {
-            // Get the current block
-            const currentBlock = editor.getTextCursorPosition()?.block;
-            if (!currentBlock) return;
+        try {
+          // Create a promise to handle the image loading
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            const timeoutId = setTimeout(() => {
+              reject(new Error("File reading timed out"));
+            }, 5000); // 5 second timeout
 
-            // Create and insert the image upload block
-            editor.insertBlocks(
-              [{
-                type: "imageUpload",
-                props: {
-                  src: reader.result
-                }
-              } as unknown as PartialBlock],
-              currentBlock,
-              "after"
-            );
-          }
-        };
-        reader.readAsDataURL(blob);
+            reader.onload = () => {
+              clearTimeout(timeoutId);
+              if (typeof reader.result === 'string') {
+                resolve(reader.result);
+              } else {
+                reject(new Error("Invalid file data"));
+              }
+            };
+            reader.onerror = () => {
+              clearTimeout(timeoutId);
+              reject(reader.error);
+            };
+            reader.readAsDataURL(blob);
+          });
+
+          // Validate the image before inserting
+          await new Promise<void>((resolve, reject) => {
+            const img = document.createElement('img');
+            const timeoutId = setTimeout(() => {
+              reject(new Error("Image loading timed out"));
+            }, 10000); // 10 second timeout
+
+            img.onload = () => {
+              clearTimeout(timeoutId);
+              // Get the current block
+              const currentBlock = editor.getTextCursorPosition()?.block;
+              if (!currentBlock) {
+                reject(new Error("No current block found"));
+                return;
+              }
+
+              // Create and insert the image upload block with a slight delay
+              setTimeout(() => {
+                editor.insertBlocks(
+                  [{
+                    type: "imageUpload",
+                    props: {
+                      src: dataUrl,
+                      width: img.naturalWidth,
+                      height: img.naturalHeight
+                    }
+                  } as unknown as PartialBlock],
+                  currentBlock,
+                  "after"
+                );
+                resolve();
+              }, 100);
+            };
+
+            img.onerror = () => {
+              clearTimeout(timeoutId);
+              reject(new Error("Failed to load image"));
+            };
+
+            img.src = dataUrl;
+          });
+        } catch (error) {
+          console.error("Error processing pasted image:", error);
+          // You might want to show a toast or some UI feedback here
+        }
       }
     };
 
-    document.addEventListener('paste', handlePaste);
-    return () => document.removeEventListener('paste', handlePaste);
+    // Use capture phase to ensure we handle the event before other handlers
+    document.addEventListener('paste', handlePaste, true);
+    return () => document.removeEventListener('paste', handlePaste, true);
   }, [editor]);
 
   // Add drag and drop handler for the editor
