@@ -106,12 +106,12 @@ export const initialContent = [
     "content": [
       {
         "type": "text",
-        "text": "Create a drawing ",
+        "text": "Create a ",
         "styles": {}
       },
       {
         "type": "text",
-        "text": "canvas",
+        "text": "drawing block",
         "styles": {
           "textColor": "red"
         }
@@ -234,7 +234,7 @@ export const initialContent = [
         "content": [
           {
             "type": "text",
-            "text": "You can draw on top of it like with the canvas!",
+            "text": "You can draw on top of it like with the drawing block!",
             "styles": {}
           }
         ],
