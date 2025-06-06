@@ -90,6 +90,7 @@ function App() {
   const [textboxes, setTextboxes] = useState<any[]>([]);
   const [mode, setMode] = useState<'comment-mode' | 'textbox-mode' | 'scribble-mode' | 'no-annotation-mode'>('no-annotation-mode');
   const [showTutorial, setShowTutorial] = useState(false);
+  const [hoveredButton, setHoveredButton] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Add clipboard paste handler
@@ -837,6 +838,14 @@ function App() {
     reader.readAsText(file);
   };
 
+  const handleButtonMouseEnter = (buttonName: string) => {
+    setHoveredButton(buttonName);
+  };
+
+  const handleButtonMouseLeave = () => {
+    setHoveredButton(null);
+  };
+
   return (
     <div className="blocknote-container">
       <OverlayToolbar mode={mode} setMode={setMode} />
@@ -854,6 +863,8 @@ function App() {
       }}>
         <button
           onClick={handleExport}
+          onMouseEnter={() => handleButtonMouseEnter('export')}
+          onMouseLeave={handleButtonMouseLeave}
           style={{
             background: 'none',
             // border: '2px solid #5A5A5A',
@@ -870,13 +881,47 @@ function App() {
             justifyContent: 'center',
             boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
             backgroundColor: '#fff',
+            position: 'relative',
           }}
           aria-label="Export Notes"
         >
           <HiSave size={24} color="#5A5A5A" />
+          {hoveredButton === 'export' && (
+            <div 
+              style={{
+                position: 'absolute',
+                right: '70px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                padding: '6px 12px',
+                background: '#5A5A5A',
+                color: 'white',
+                borderRadius: '6px',
+                fontSize: '12px',
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                zIndex: 1300,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              }}>
+              Save Notes
+              <div style={{
+                position: 'absolute',
+                left: '100%',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 0,
+                height: 0,
+                borderLeft: '6px solid #5A5A5A',
+                borderTop: '6px solid transparent',
+                borderBottom: '6px solid transparent',
+              }} />
+            </div>
+          )}
         </button>
         <button
           onClick={() => fileInputRef.current?.click()}
+          onMouseEnter={() => handleButtonMouseEnter('import')}
+          onMouseLeave={handleButtonMouseLeave}
           style={{
             background: 'none',
             // border: '2px solid #5A5A5A',
@@ -893,13 +938,47 @@ function App() {
             justifyContent: 'center',
             boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
             backgroundColor: '#fff',
+            position: 'relative',
           }}
           aria-label="Import Notes"
         >
           <HiUpload size={24} color="#5A5A5A" />
+          {hoveredButton === 'import' && (
+            <div 
+              style={{
+                position: 'absolute',
+                right: '70px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                padding: '6px 12px',
+                background: '#5A5A5A',
+                color: 'white',
+                borderRadius: '6px',
+                fontSize: '12px',
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                zIndex: 1300,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              }}>
+              Import Notes
+              <div style={{
+                position: 'absolute',
+                left: '100%',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 0,
+                height: 0,
+                borderLeft: '6px solid #5A5A5A',
+                borderTop: '6px solid transparent',
+                borderBottom: '6px solid transparent',
+              }} />
+            </div>
+          )}
         </button>
         <button
           onClick={() => setShowTutorial(true)}
+          onMouseEnter={() => handleButtonMouseEnter('help')}
+          onMouseLeave={handleButtonMouseLeave}
           style={{
             background: 'none',
             // border: '2px solid #5A5A5A',
@@ -916,10 +995,42 @@ function App() {
             justifyContent: 'center',
             boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
             backgroundColor: '#fff',
+            position: 'relative',
           }}
           aria-label="Show Help"
         >
           <HiQuestionMarkCircle size={24} color="#5A5A5A" />
+          {hoveredButton === 'help' && (
+            <div 
+              style={{
+                position: 'absolute',
+                right: '70px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                padding: '6px 12px',
+                background: '#5A5A5A',
+                color: 'white',
+                borderRadius: '6px',
+                fontSize: '12px',
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                zIndex: 1300,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              }}>
+              Tutorial and Help
+              <div style={{
+                position: 'absolute',
+                left: '100%',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 0,
+                height: 0,
+                borderLeft: '6px solid #5A5A5A',
+                borderTop: '6px solid transparent',
+                borderBottom: '6px solid transparent',
+              }} />
+            </div>
+          )}
         </button>
         <input
           ref={fileInputRef}
