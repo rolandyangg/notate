@@ -111,8 +111,8 @@ export const TextboxOverlay = ({
 
     const newTextbox: Textbox = {
       id: `textbox-${Date.now()}`,
-      x: e.clientX,
-      y: e.clientY,
+      x: e.clientX + window.scrollX,
+      y: e.clientY + window.scrollY,
       text: '',
       isEditing: true
     };
