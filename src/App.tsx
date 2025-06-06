@@ -85,15 +85,7 @@ interface Annotation {
 function App() {
   const editor = useCreateBlockNote({ 
     schema,
-    initialContent: initialContent as any,
-    uploadFile: async (file) => {
-      console.warn('[UPLOAD-DEBUG] BlockNote trying to handle file upload:', {
-        type: file.type,
-        size: file.size,
-        name: file.name
-      });
-      throw new Error('Upload handling disabled');
-    }
+    initialContent: initialContent as any
   });
   const [annotations, setAnnotations] = useState<any[]>([]);
   const [textboxes, setTextboxes] = useState<any[]>([]);
@@ -101,175 +93,177 @@ function App() {
   const [showTutorial, setShowTutorial] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Add clipboard paste handler
   useEffect(() => {
     const handlePaste = async (e: ClipboardEvent) => {
-      console.warn('[PASTE-DEBUG] Starting paste handling');
+      // Only handle paste if we're focused in the editor
+      if (!editor.getTextCursorPosition()) return;
       
-      if (!editor || typeof editor.getTextCursorPosition !== "function") {
-        console.warn('[PASTE-DEBUG] Editor not ready');
-        return;
-      }
-      
-      const cursorPosition = editor.getTextCursorPosition();
-      if (!cursorPosition) {
-        console.warn('[PASTE-DEBUG] No cursor position');
-        return;
-      }
-
       const items = Array.from(e.clipboardData?.items || []);
-      console.warn('[PASTE-DEBUG] Clipboard items:', items.map(item => ({
-        type: item.type,
-        kind: item.kind
-      })));
-      
       const imageItem = items.find(item => item.type.startsWith('image'));
+      
       if (imageItem) {
-        console.warn('[PASTE-DEBUG] Found image item');
         e.preventDefault();
-        e.stopPropagation();
+        const blob = imageItem.getAsFile();
+        if (!blob) return;
 
-        try {
-          const blob = imageItem.getAsFile();
-          if (!blob) {
-            console.warn('[PASTE-DEBUG] Failed to get blob from image item');
-            return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            // Get the current block
+            const currentBlock = editor.getTextCursorPosition()?.block;
+            if (!currentBlock) return;
+
+            // Create and insert the image upload block
+            editor.insertBlocks(
+              [{
+                type: "imageUpload",
+                props: {
+                  src: reader.result
+                }
+              } as unknown as PartialBlock],
+              currentBlock,
+              "after"
+            );
           }
-
-          console.warn('[PASTE-DEBUG] Got blob:', {
-            size: blob.size,
-            type: blob.type
-          });
-
-          const reader = new FileReader();
-          
-          reader.onerror = (error) => {
-            console.error('[PASTE-DEBUG] FileReader error:', error);
-          };
-
-          reader.onload = () => {
-            console.warn('[PASTE-DEBUG] FileReader loaded');
-            if (typeof reader.result === 'string') {
-              // Verify the data URL
-              console.warn('[PASTE-DEBUG] Data URL check:', {
-                startsWithData: reader.result.startsWith('data:'),
-                length: reader.result.length,
-                mimeType: reader.result.split(',')[0]
-              });
-
-              const currentBlock = editor.getTextCursorPosition()?.block;
-              if (!currentBlock) {
-                console.warn('[PASTE-DEBUG] No current block found');
-                return;
-              }
-
-              try {
-                console.warn('[PASTE-DEBUG] Attempting to insert block');
-                editor.insertBlocks(
-                  [{
-                    type: "imageUpload",
-                    props: {
-                      src: reader.result
-                    }
-                  } as unknown as PartialBlock],
-                  currentBlock,
-                  "after"
-                );
-                console.warn('[PASTE-DEBUG] Block inserted successfully');
-              } catch (error) {
-                console.error('[PASTE-DEBUG] Error inserting block:', error);
-              }
-            } else {
-              console.warn('[PASTE-DEBUG] FileReader result not a string:', typeof reader.result);
-            }
-          };
-
-          console.warn('[PASTE-DEBUG] Starting FileReader');
-          reader.readAsDataURL(blob);
-        } catch (error) {
-          console.error('[PASTE-DEBUG] Error in paste handling:', error);
-        }
+        };
+        reader.readAsDataURL(blob);
       }
     };
 
-    // Use capture phase to ensure we get the event first
-    document.addEventListener('paste', handlePaste, true);
-    return () => document.removeEventListener('paste', handlePaste, true);
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
   }, [editor]);
 
-  // Similar debugging for drop handler
+  // Add drag and drop handler for the editor
   useEffect(() => {
-    const handleDrop = async (e: DragEvent) => {
-      console.warn('[DROP-DEBUG] Drop event received');
-      e.preventDefault();
-      e.stopPropagation();
+    const handleDragOver = (e: Event) => {
+      const dragEvent = e as DragEvent;
+      dragEvent.preventDefault();
+      dragEvent.stopPropagation();
+    };
 
-      try {
-        const files = Array.from(e.dataTransfer?.files || []);
-        console.warn('[DROP-DEBUG] Dropped files:', files.map(f => ({
-          type: f.type,
-          size: f.size,
-          name: f.name
-        })));
+    const handleDrop = async (e: Event) => {
+      const dragEvent = e as DragEvent;
+      dragEvent.preventDefault();
+      dragEvent.stopPropagation();
 
-        const imageFile = files.find(file => file.type.startsWith('image/'));
-        if (imageFile) {
-          console.warn('[DROP-DEBUG] Processing image file');
-          
+      // Get the current block based on drop position
+      const editorElement = document.querySelector('.blocknote-editor');
+      if (!editorElement) return;
+
+      const editorRect = editorElement.getBoundingClientRect();
+      const dropY = dragEvent.clientY - editorRect.top + editorElement.scrollTop;
+
+      // Find the block closest to the drop position
+      const blocks = editor.document;
+      const blockElements = editorElement.querySelectorAll('.bn-block');
+      let targetBlock = blocks[0];
+      let minDistance = Infinity;
+
+      blockElements.forEach((element, index) => {
+        const rect = element.getBoundingClientRect();
+        const blockMiddle = rect.top + rect.height / 2 - editorRect.top;
+        const distance = Math.abs(dropY - blockMiddle);
+        if (distance < minDistance) {
+          minDistance = distance;
+          targetBlock = blocks[index];
+        }
+      });
+
+      if (!targetBlock) return;
+
+      const items = Array.from(dragEvent.dataTransfer?.items || []);
+      const files = Array.from(dragEvent.dataTransfer?.files || []);
+      
+      // First try to get image from items (for URLs)
+      const imageItem = items.find(item => item.type.startsWith('image'));
+      if (imageItem) {
+        const file = imageItem.getAsFile();
+        if (file) {
           const reader = new FileReader();
-          reader.onerror = (error) => {
-            console.error('[DROP-DEBUG] FileReader error:', error);
-          };
-
           reader.onload = () => {
-            console.warn('[DROP-DEBUG] FileReader loaded');
             if (typeof reader.result === 'string') {
-              // Get the first block as fallback
-              const targetBlock = editor.document[0];
-              if (!targetBlock) {
-                console.warn('[DROP-DEBUG] No target block found');
-                return;
-              }
+              // Get the drop position relative to the target block
+              const blockElement = blockElements[blocks.indexOf(targetBlock)];
+              const blockRect = blockElement.getBoundingClientRect();
+              const dropPosition = dropY > blockRect.top + blockRect.height / 2 ? "after" : "before";
 
-              try {
-                console.warn('[DROP-DEBUG] Attempting to insert block');
-                editor.insertBlocks(
-                  [{
-                    type: "imageUpload",
-                    props: {
-                      src: reader.result
-                    }
-                  } as unknown as PartialBlock],
-                  targetBlock,
-                  "after"
-                );
-                console.warn('[DROP-DEBUG] Block inserted successfully');
-              } catch (error) {
-                console.error('[DROP-DEBUG] Error inserting block:', error);
-              }
+              editor.insertBlocks(
+                [{
+                  type: "imageUpload",
+                  props: {
+                    src: reader.result
+                  }
+                } as unknown as PartialBlock],
+                targetBlock,
+                dropPosition
+              );
             }
           };
-
-          console.warn('[DROP-DEBUG] Starting FileReader');
-          reader.readAsDataURL(imageFile);
+          reader.readAsDataURL(file);
+          return;
         }
-      } catch (error) {
-        console.error('[DROP-DEBUG] Error in drop handling:', error);
+      }
+
+      // Then try to get image from files
+      const imageFile = files.find(file => file.type.startsWith('image/'));
+      if (imageFile) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            // Get the drop position relative to the target block
+            const blockElement = blockElements[blocks.indexOf(targetBlock)];
+            const blockRect = blockElement.getBoundingClientRect();
+            const dropPosition = dropY > blockRect.top + blockRect.height / 2 ? "after" : "before";
+
+            editor.insertBlocks(
+              [{
+                type: "imageUpload",
+                props: {
+                  src: reader.result
+                }
+              } as unknown as PartialBlock],
+              targetBlock,
+              dropPosition
+            );
+          }
+        };
+        reader.readAsDataURL(imageFile);
+        return;
+      }
+
+      // Finally try to get image from URL
+      const url = dragEvent.dataTransfer?.getData('text/uri-list') || dragEvent.dataTransfer?.getData('text/plain');
+      if (url && url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+        // Get the drop position relative to the target block
+        const blockElement = blockElements[blocks.indexOf(targetBlock)];
+        const blockRect = blockElement.getBoundingClientRect();
+        const dropPosition = dropY > blockRect.top + blockRect.height / 2 ? "after" : "before";
+
+        editor.insertBlocks(
+          [{
+            type: "imageUpload",
+            props: {
+              src: url
+            }
+          } as unknown as PartialBlock],
+          targetBlock,
+          dropPosition
+        );
       }
     };
 
-    const handleDragOver = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
+    const editorElement = document.querySelector('.blocknote-editor');
+    if (editorElement) {
+      editorElement.addEventListener('dragover', handleDragOver);
+      editorElement.addEventListener('drop', handleDrop);
 
-    // Use capture phase to ensure we get the events first
-    document.addEventListener('dragover', handleDragOver, true);
-    document.addEventListener('drop', handleDrop, true);
-    
-    return () => {
-      document.removeEventListener('dragover', handleDragOver, true);
-      document.removeEventListener('drop', handleDrop, true);
-    };
+      return () => {
+        editorElement.removeEventListener('dragover', handleDragOver);
+        editorElement.removeEventListener('drop', handleDrop);
+      };
+    }
   }, [editor]);
 
   // Wrapper functions to maintain compatibility with existing components
