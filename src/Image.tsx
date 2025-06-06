@@ -222,23 +222,33 @@ import {
           const file = imageItem.getAsFile();
           if (file) {
             try {
+              setIsLoading(true);
               const dataUrl = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
+                const timeoutId = setTimeout(() => {
+                  reject(new Error("File reading timed out"));
+                }, 5000); // 5 second timeout
+
                 reader.onload = () => {
+                  clearTimeout(timeoutId);
                   if (typeof reader.result === 'string') {
                     resolve(reader.result);
                   } else {
                     reject(new Error("Invalid file data"));
                   }
                 };
-                reader.onerror = () => reject(reader.error);
+                reader.onerror = () => {
+                  clearTimeout(timeoutId);
+                  reject(reader.error);
+                };
                 reader.readAsDataURL(file);
               });
 
               await validateAndUpdateImage(dataUrl);
             } catch (error) {
               console.error("Error processing dropped image:", error);
-              setImageError("Failed to process dropped image");
+              setImageError("Failed to process dropped image. Please try again.");
+              setIsLoading(false);
             }
             return;
           }
@@ -248,23 +258,33 @@ import {
         const imageFile = files.find(file => file.type.startsWith('image/'));
         if (imageFile) {
           try {
+            setIsLoading(true);
             const dataUrl = await new Promise<string>((resolve, reject) => {
               const reader = new FileReader();
+              const timeoutId = setTimeout(() => {
+                reject(new Error("File reading timed out"));
+              }, 5000); // 5 second timeout
+
               reader.onload = () => {
+                clearTimeout(timeoutId);
                 if (typeof reader.result === 'string') {
                   resolve(reader.result);
                 } else {
                   reject(new Error("Invalid file data"));
                 }
               };
-              reader.onerror = () => reject(reader.error);
+              reader.onerror = () => {
+                clearTimeout(timeoutId);
+                reject(reader.error);
+              };
               reader.readAsDataURL(imageFile);
             });
 
             await validateAndUpdateImage(dataUrl);
           } catch (error) {
             console.error("Error processing dropped image file:", error);
-            setImageError("Failed to process dropped image");
+            setImageError("Failed to process dropped image file. Please try again.");
+            setIsLoading(false);
           }
           return;
         }
@@ -273,10 +293,12 @@ import {
         const url = e.dataTransfer?.getData('text/uri-list') || e.dataTransfer?.getData('text/plain');
         if (url && url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
           try {
+            setIsLoading(true);
             await validateAndUpdateImage(url);
           } catch (error) {
             console.error("Error processing dropped image URL:", error);
-            setImageError("Failed to process dropped image URL");
+            setImageError("Failed to process dropped image URL. Please try again.");
+            setIsLoading(false);
           }
         }
       };

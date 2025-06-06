@@ -228,6 +228,12 @@ function App() {
 
       if (!targetBlock) return;
 
+      // Check if we're dropping onto an imageUpload block
+      if (targetBlock.type === 'imageUpload') {
+        // Let the imageUpload block handle it
+        return;
+      }
+
       const items = Array.from(dragEvent.dataTransfer?.items || []);
       const files = Array.from(dragEvent.dataTransfer?.files || []);
       
@@ -236,27 +242,72 @@ function App() {
       if (imageItem) {
         const file = imageItem.getAsFile();
         if (file) {
-          const reader = new FileReader();
-          reader.onload = () => {
-            if (typeof reader.result === 'string') {
-              // Get the drop position relative to the target block
-              const blockElement = blockElements[blocks.indexOf(targetBlock)];
-              const blockRect = blockElement.getBoundingClientRect();
-              const dropPosition = dropY > blockRect.top + blockRect.height / 2 ? "after" : "before";
+          try {
+            // Create a promise to handle the image loading
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              const timeoutId = setTimeout(() => {
+                reject(new Error("File reading timed out"));
+              }, 5000); // 5 second timeout
 
-              editor.insertBlocks(
-                [{
-                  type: "imageUpload",
-                  props: {
-                    src: reader.result
-                  }
-                } as unknown as PartialBlock],
-                targetBlock,
-                dropPosition
-              );
-            }
-          };
-          reader.readAsDataURL(file);
+              reader.onload = () => {
+                clearTimeout(timeoutId);
+                if (typeof reader.result === 'string') {
+                  resolve(reader.result);
+                } else {
+                  reject(new Error("Invalid file data"));
+                }
+              };
+              reader.onerror = () => {
+                clearTimeout(timeoutId);
+                reject(reader.error);
+              };
+              reader.readAsDataURL(file);
+            });
+
+            // Validate the image before inserting
+            await new Promise<void>((resolve, reject) => {
+              const img = document.createElement('img');
+              const timeoutId = setTimeout(() => {
+                reject(new Error("Image loading timed out"));
+              }, 10000); // 10 second timeout
+
+              img.onload = () => {
+                clearTimeout(timeoutId);
+                // Get the drop position relative to the target block
+                const blockElement = blockElements[blocks.indexOf(targetBlock)];
+                const blockRect = blockElement.getBoundingClientRect();
+                const dropPosition = dropY > blockRect.top + blockRect.height / 2 ? "after" : "before";
+
+                // Insert the block with a slight delay
+                setTimeout(() => {
+                  editor.insertBlocks(
+                    [{
+                      type: "imageUpload",
+                      props: {
+                        src: dataUrl,
+                        width: img.naturalWidth,
+                        height: img.naturalHeight
+                      }
+                    } as unknown as PartialBlock],
+                    targetBlock,
+                    dropPosition
+                  );
+                  resolve();
+                }, 100);
+              };
+
+              img.onerror = () => {
+                clearTimeout(timeoutId);
+                reject(new Error("Failed to load image"));
+              };
+
+              img.src = dataUrl;
+            });
+          } catch (error) {
+            console.error("Error processing dropped image:", error);
+            // You might want to show a toast or some UI feedback here
+          }
           return;
         }
       }
@@ -264,48 +315,122 @@ function App() {
       // Then try to get image from files
       const imageFile = files.find(file => file.type.startsWith('image/'));
       if (imageFile) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          if (typeof reader.result === 'string') {
-            // Get the drop position relative to the target block
-            const blockElement = blockElements[blocks.indexOf(targetBlock)];
-            const blockRect = blockElement.getBoundingClientRect();
-            const dropPosition = dropY > blockRect.top + blockRect.height / 2 ? "after" : "before";
+        try {
+          // Create a promise to handle the image loading
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            const timeoutId = setTimeout(() => {
+              reject(new Error("File reading timed out"));
+            }, 5000); // 5 second timeout
 
-            editor.insertBlocks(
-              [{
-                type: "imageUpload",
-                props: {
-                  src: reader.result
-                }
-              } as unknown as PartialBlock],
-              targetBlock,
-              dropPosition
-            );
-          }
-        };
-        reader.readAsDataURL(imageFile);
+            reader.onload = () => {
+              clearTimeout(timeoutId);
+              if (typeof reader.result === 'string') {
+                resolve(reader.result);
+              } else {
+                reject(new Error("Invalid file data"));
+              }
+            };
+            reader.onerror = () => {
+              clearTimeout(timeoutId);
+              reject(reader.error);
+            };
+            reader.readAsDataURL(imageFile);
+          });
+
+          // Validate the image before inserting
+          await new Promise<void>((resolve, reject) => {
+            const img = document.createElement('img');
+            const timeoutId = setTimeout(() => {
+              reject(new Error("Image loading timed out"));
+            }, 10000); // 10 second timeout
+
+            img.onload = () => {
+              clearTimeout(timeoutId);
+              // Get the drop position relative to the target block
+              const blockElement = blockElements[blocks.indexOf(targetBlock)];
+              const blockRect = blockElement.getBoundingClientRect();
+              const dropPosition = dropY > blockRect.top + blockRect.height / 2 ? "after" : "before";
+
+              // Insert the block with a slight delay
+              setTimeout(() => {
+                editor.insertBlocks(
+                  [{
+                    type: "imageUpload",
+                    props: {
+                      src: dataUrl,
+                      width: img.naturalWidth,
+                      height: img.naturalHeight
+                    }
+                  } as unknown as PartialBlock],
+                  targetBlock,
+                  dropPosition
+                );
+                resolve();
+              }, 100);
+            };
+
+            img.onerror = () => {
+              clearTimeout(timeoutId);
+              reject(new Error("Failed to load image"));
+            };
+
+            img.src = dataUrl;
+          });
+        } catch (error) {
+          console.error("Error processing dropped image file:", error);
+          // You might want to show a toast or some UI feedback here
+        }
         return;
       }
 
       // Finally try to get image from URL
       const url = dragEvent.dataTransfer?.getData('text/uri-list') || dragEvent.dataTransfer?.getData('text/plain');
       if (url && url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-        // Get the drop position relative to the target block
-        const blockElement = blockElements[blocks.indexOf(targetBlock)];
-        const blockRect = blockElement.getBoundingClientRect();
-        const dropPosition = dropY > blockRect.top + blockRect.height / 2 ? "after" : "before";
+        try {
+          // Validate the image before inserting
+          await new Promise<void>((resolve, reject) => {
+            const img = document.createElement('img');
+            const timeoutId = setTimeout(() => {
+              reject(new Error("Image loading timed out"));
+            }, 10000); // 10 second timeout
 
-        editor.insertBlocks(
-          [{
-            type: "imageUpload",
-            props: {
-              src: url
-            }
-          } as unknown as PartialBlock],
-          targetBlock,
-          dropPosition
-        );
+            img.onload = () => {
+              clearTimeout(timeoutId);
+              // Get the drop position relative to the target block
+              const blockElement = blockElements[blocks.indexOf(targetBlock)];
+              const blockRect = blockElement.getBoundingClientRect();
+              const dropPosition = dropY > blockRect.top + blockRect.height / 2 ? "after" : "before";
+
+              // Insert the block with a slight delay
+              setTimeout(() => {
+                editor.insertBlocks(
+                  [{
+                    type: "imageUpload",
+                    props: {
+                      src: url,
+                      width: img.naturalWidth,
+                      height: img.naturalHeight
+                    }
+                  } as unknown as PartialBlock],
+                  targetBlock,
+                  dropPosition
+                );
+                resolve();
+              }, 100);
+            };
+
+            img.onerror = () => {
+              clearTimeout(timeoutId);
+              reject(new Error("Failed to load image"));
+            };
+
+            img.src = url;
+          });
+        } catch (error) {
+          console.error("Error processing dropped image URL:", error);
+          // You might want to show a toast or some UI feedback here
+        }
       }
     };
 
