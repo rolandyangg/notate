@@ -48,14 +48,21 @@ import {
     // Handle clipboard paste events
     useEffect(() => {
       const handlePaste = async (e: ClipboardEvent) => {
-        // Check if the paste event target is within our component
-        if (!containerRef.current?.contains(e.target as Node)) return;
+        // Check if we're the focused block or if the paste happened inside our container
+        const isBlockFocused = editor.getTextCursorPosition()?.block?.id === block.id;
+        const isPasteInContainer = containerRef.current?.contains(e.target as Node);
+        
+        // Only handle paste if it's in our block or container
+        if (!isBlockFocused && !isPasteInContainer) return;
 
         const items = Array.from(e.clipboardData?.items || []);
         const imageItem = items.find(item => item.type.startsWith('image'));
         
         if (imageItem) {
+          // Stop the event from propagating to prevent double paste
           e.preventDefault();
+          e.stopPropagation();
+          
           const blob = imageItem.getAsFile();
           if (!blob) return;
 
@@ -81,8 +88,9 @@ import {
         }
       };
 
-      document.addEventListener('paste', handlePaste);
-      return () => document.removeEventListener('paste', handlePaste);
+      // Use capture phase to ensure we handle the event before other handlers
+      document.addEventListener('paste', handlePaste, true);
+      return () => document.removeEventListener('paste', handlePaste, true);
     }, [block, editor]);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
