@@ -1,10 +1,12 @@
-# Notate: Blending Visual and Textual Notetaking
+# Notate
 
 A lightweight, minimalist text editor designed to make integrating annotations and visuals easier—perfect for visual notetakers seeking a smoother experience on platforms that traditionally struggle with rich note-taking.
 
 ![Example Page](readme/notate_example.jpg)
 
-[View our poster](readme/poster.pdf)
+![Poster Screenshot](readme/poster_screenshot.png)
+
+[View our full poster](readme/poster.pdf)
 
 Created by Cheryl Wu, Huixi Lee, Roland Yang, and Sean Chan for UCLA's CS188: Human-Computer Interaction Class.
 
