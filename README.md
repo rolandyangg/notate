@@ -17,7 +17,7 @@ npm install @blocknote/core @blocknote/react @blocknote/mantine
 npm run dev
 ```
 
-You may also use the live website: [notetaking-hci-app.vercel.app](notetaking-hci-app.vercel.app)
+You may also use the live website: [https://notetaking-hci-app.vercel.app/](https://notetaking-hci-app.vercel.app/)
 
 ## Features
 
