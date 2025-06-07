@@ -87,7 +87,7 @@ function App() {
     schema,
     initialContent: initialContent as any
   });
-  const [annotations, setAnnotations] = useState<any[]>([]);
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [textboxes, setTextboxes] = useState<any[]>([]);
   const [mode, setMode] = useState<'comment-mode' | 'textbox-mode' | 'scribble-mode' | 'no-annotation-mode'>('no-annotation-mode');
   const [showTutorial, setShowTutorial] = useState(false);
