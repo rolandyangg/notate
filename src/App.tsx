@@ -480,28 +480,8 @@ function App() {
   };
 
   const handleExport = async () => {
-    // Debug state variables
-    console.log('Current state variables:', {
-      annotations: {
-        raw: annotations,
-        length: annotations.length,
-        firstItem: annotations[0]
-      },
-      textboxes: {
-        raw: textboxes,
-        length: textboxes.length,
-        firstItem: textboxes[0]
-      }
-    });
-
     // Get all drawing blocks and their canvas data
     const drawingBlocks = editor.document.filter(block => block.type === 'drawing');
-    console.log('Found drawing blocks:', drawingBlocks.length);
-    console.log('Drawing blocks details:', drawingBlocks.map(block => ({
-      id: block.id,
-      type: block.type,
-      props: block.props
-    })));
 
     // Get scribble overlay canvas data
     const scribbleCanvas = document.querySelector('.blocknote-container > div > canvas') as HTMLCanvasElement;
@@ -513,9 +493,17 @@ function App() {
         const editorContainer = document.querySelector('.blocknote-container') as HTMLElement;
         const editorRect = editorContainer?.getBoundingClientRect();
         
+        // Store the original canvas style dimensions
+        const originalWidth = scribbleCanvas.style.width;
+        const originalHeight = scribbleCanvas.style.height;
+        const originalTransform = scribbleCanvas.style.transform;
+        
         scribbleData = {
           width: scribbleCanvas.width,
           height: scribbleCanvas.height,
+          styleWidth: originalWidth,
+          styleHeight: originalHeight,
+          transform: originalTransform,
           pixelData: Array.from(imageData.data),
           viewport: {
             scrollHeight: document.documentElement.scrollHeight,
@@ -527,187 +515,31 @@ function App() {
             devicePixelRatio: window.devicePixelRatio
           }
         };
-        console.log('Scribble overlay data:', {
-          width: scribbleCanvas.width,
-          height: scribbleCanvas.height,
-          pixelDataLength: imageData.data.length,
-          viewport: scribbleData.viewport
-        });
       }
-    } else {
-      console.log('Scribble canvas not found');
     }
-
-    // Log annotation tools data
-    console.log('Exporting annotation tools data:', {
-      annotations: {
-        count: annotations.length,
-        details: annotations.map(ann => ({
-          id: ann.id,
-          type: ann.type,
-          startPoint: ann.startPoint,
-          textBox: ann.textBox,
-          text: ann.text,
-          isEditing: ann.isEditing
-        }))
-      },
-      textboxes: {
-        count: textboxes.length,
-        details: textboxes.map(tb => ({
-          id: tb.id,
-          x: tb.x,
-          y: tb.y,
-          text: tb.text,
-          isEditing: tb.isEditing
-        }))
-      },
-      scribbleData: scribbleData ? {
-        width: scribbleData.width,
-        height: scribbleData.height,
-        pixelDataLength: scribbleData.pixelData.length
-      } : null
-    });
-
-    // Debug DOM structure
-    const editorElement = document.querySelector('.blocknote-editor');
-    console.log('Editor element found:', !!editorElement);
-    if (editorElement) {
-      // Find all block containers
-      const allBlockElements = editorElement.querySelectorAll('.bn-block[data-id]');
-      console.log('All block elements found:', allBlockElements.length);
-      allBlockElements.forEach(el => {
-        console.log('Block element:', {
-          id: el.getAttribute('data-id'),
-          type: el.querySelector('.bn-block-content')?.getAttribute('data-content-type'),
-          html: el.outerHTML
-        });
-      });
-    }
-
-    // Wait for blocks to be rendered
-    const waitForBlocks = () => {
-      return new Promise<void>((resolve) => {
-        const checkBlocks = () => {
-          const allBlocksRendered = drawingBlocks.every(block => {
-            // Find the block container
-            const blockElement = editorElement?.querySelector(`.bn-block[data-id="${block.id}"]`);
-            // Find the canvas within the block's content
-            const canvas = blockElement?.querySelector('canvas');
-            const isRendered = blockElement && canvas;
-            if (!isRendered) {
-              console.log('Block not rendered:', {
-                blockId: block.id,
-                blockElementFound: !!blockElement,
-                canvasFound: !!canvas
-              });
-            }
-            return isRendered;
-          });
-
-          if (allBlocksRendered) {
-            resolve();
-          } else {
-            setTimeout(checkBlocks, 100);
-          }
-        };
-        checkBlocks();
-      });
-    };
-
-    // Wait for blocks to be rendered (with a timeout)
-    try {
-      await Promise.race([
-        waitForBlocks(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-      ]);
-    } catch (error) {
-      console.error('Timeout waiting for blocks to render');
-    }
-
-    const drawingData = drawingBlocks.map(block => {
-      // Find the block container
-      const blockElement = editorElement?.querySelector(`.bn-block[data-id="${block.id}"]`);
-      console.log('Block element found:', !!blockElement, 'for block ID:', block.id);
-      console.log('Block element HTML:', blockElement?.outerHTML);
-      
-      const canvas = blockElement?.querySelector('canvas') as HTMLCanvasElement;
-      console.log('Canvas found:', !!canvas, 'for block ID:', block.id);
-      console.log('Canvas HTML:', canvas?.outerHTML);
-      
-      if (!canvas) return null;
-
-      // Ensure the canvas is properly initialized
-      const ctx = canvas.getContext('2d');
-      console.log('Canvas context found:', !!ctx, 'for block ID:', block.id);
-      
-      if (!ctx) return null;
-
-      // Get the raw pixel data
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      console.log('ImageData dimensions:', {
-        width: canvas.width,
-        height: canvas.height,
-        dataLength: imageData.data.length
-      }, 'for block ID:', block.id);
-
-      // Verify the drawing content
-      const pixelData = imageData.data;
-      let nonTransparentPixels = 0;
-      let totalPixels = pixelData.length / 4; // Each pixel has 4 values (RGBA)
-      
-      // Count non-transparent pixels (where alpha > 0)
-      for (let i = 3; i < pixelData.length; i += 4) {
-        if (pixelData[i] > 0) {
-          nonTransparentPixels++;
-        }
-      }
-      
-      console.log('Drawing content verification:', {
-        totalPixels,
-        nonTransparentPixels,
-        percentageDrawn: (nonTransparentPixels / totalPixels * 100).toFixed(2) + '%',
-        // Sample some pixel values to verify content
-        samplePixels: Array.from(pixelData.slice(0, 20)) // First 5 pixels (20 values)
-      });
-
-      return {
-        blockId: block.id,
-        width: canvas.width,
-        height: canvas.height,
-        pixelData: Array.from(imageData.data)
-      };
-    }).filter(Boolean);
-
-    console.log('Final drawing data to export:', drawingData);
 
     const data = {
       blocks: editor.document,
-      annotations: annotations.map(ann => ({
-        id: ann.id,
-        type: ann.type,
-        startPoint: ann.startPoint,
-        textBox: ann.textBox,
-        text: ann.text,
-        isEditing: ann.isEditing
-      })),
-      textboxes: textboxes.map(tb => ({
-        id: tb.id,
-        x: tb.x,
-        y: tb.y,
-        text: tb.text,
-        isEditing: tb.isEditing
-      })),
-      drawingData: drawingData,
-      scribbleData: scribbleData
-    };
+      annotations,
+      textboxes,
+      drawingData: drawingBlocks.map(block => {
+        const blockElement = document.querySelector(`.bn-block[data-id="${block.id}"]`);
+        const canvas = blockElement?.querySelector('canvas') as HTMLCanvasElement;
+        if (!canvas) return null;
 
-    console.log('Final export data:', {
-      blocksCount: data.blocks.length,
-      annotationsCount: data.annotations.length,
-      textboxesCount: data.textboxes.length,
-      drawingDataCount: data.drawingData.length,
-      hasScribbleData: !!data.scribbleData
-    });
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        return {
+          blockId: block.id,
+          width: canvas.width,
+          height: canvas.height,
+          pixelData: Array.from(imageData.data)
+        };
+      }).filter(Boolean),
+      scribbleData
+    };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -718,18 +550,13 @@ function App() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
-    // Show success message
-    alert('Notes exported successfully!');
   };
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Show confirmation dialog
     if (!window.confirm('Importing a file will replace all existing content. Are you sure you want to continue?')) {
-      // Reset the file input
       event.target.value = '';
       return;
     }
@@ -738,20 +565,6 @@ function App() {
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target?.result as string);
-        console.log('Imported data:', {
-          blocks: data.blocks?.length,
-          annotations: data.annotations?.length,
-          textboxes: data.textboxes?.length,
-          drawingData: data.drawingData?.length,
-          hasScribbleData: !!data.scribbleData,
-          firstDrawingData: data.drawingData?.[0] ? {
-            blockId: data.drawingData[0].blockId,
-            width: data.drawingData[0].width,
-            height: data.drawingData[0].height,
-            pixelDataLength: data.drawingData[0].pixelData.length,
-            samplePixels: data.drawingData[0].pixelData.slice(0, 20) // First 5 pixels
-          } : null
-        });
 
         if (data.blocks) {
           editor.replaceBlocks(editor.document, data.blocks);
@@ -761,250 +574,59 @@ function App() {
             const editorElement = document.querySelector('.blocknote-editor');
             if (!editorElement) return;
 
-            const editorRect = editorElement.getBoundingClientRect();
-            const blockElements = editorElement.querySelectorAll('.bn-block');
-            const blocks = editor.document;
-
-            // Get block positions
-            const blockPositions = Array.from(blockElements).map((element, index) => {
-              const rect = element.getBoundingClientRect();
-              const blockId = blocks[index]?.id;
-              
-              return {
-                index,
-                top: rect.top - editorRect.top,
-                height: rect.height,
-                blockId
-              };
-            });
-
-            // Restore annotations with adjusted positions
-            if (data.annotations) {
-              const adjustedAnnotations = data.annotations.map((annotation: Annotation) => {
-                if (!annotation.blockId) return annotation;
-
-                const blockPosition = blockPositions.find(pos => pos.blockId === annotation.blockId);
-                if (!blockPosition) return annotation;
-
-                // Adjust the y positions based on the block's new position
-                return {
-                  ...annotation,
-                  startPoint: {
-                    ...annotation.startPoint,
-                    y: blockPosition.top + (annotation.startPoint.y % blockPosition.height)
-                  },
-                  textBox: {
-                    ...annotation.textBox,
-                    y: blockPosition.top + (annotation.textBox.y % blockPosition.height)
-                  }
-                };
-              });
-
-              setAnnotations(adjustedAnnotations);
-              console.log('Restored annotations with adjusted positions:', adjustedAnnotations.length);
-            }
-
-            // Restore textboxes
-            if (data.textboxes) {
-              setTextboxes(data.textboxes);
-              console.log('Restored textboxes:', data.textboxes.length);
-            }
+            // Restore annotations and textboxes
+            if (data.annotations) setAnnotations(data.annotations);
+            if (data.textboxes) setTextboxes(data.textboxes);
             
             // Restore drawing data
             if (data.drawingData) {
-              const drawingBlocks = editor.document.filter(block => block.type === 'drawing');
-              console.log('Checking for drawing blocks to restore:', drawingBlocks.length);
-              
-              const renderedBlocks = drawingBlocks.every(block => {
-                const blockElement = document.querySelector(`.bn-block[data-id="${block.id}"]`);
+              data.drawingData.forEach((drawing: any) => {
+                const blockElement = document.querySelector(`.bn-block[data-id="${drawing.blockId}"]`);
                 const canvas = blockElement?.querySelector('canvas') as HTMLCanvasElement;
-                const isRendered = blockElement && canvas;
+                if (!canvas || !drawing.pixelData) return;
+
+                canvas.width = drawing.width;
+                canvas.height = drawing.height;
                 
-                if (!isRendered) {
-                  console.log('Block not yet rendered:', {
-                    blockId: block.id,
-                    blockElementFound: !!blockElement,
-                    canvasFound: !!canvas
-                  });
-                }
-                
-                return isRendered;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                const imageData = new ImageData(
+                  new Uint8ClampedArray(drawing.pixelData),
+                  drawing.width,
+                  drawing.height
+                );
+                ctx.putImageData(imageData, 0, 0);
               });
+            }
 
-              if (renderedBlocks) {
-                console.log('All blocks rendered, restoring drawing data');
-                data.drawingData.forEach((drawing: { blockId: string; width: number; height: number; pixelData: number[] }) => {
-                  const blockElement = document.querySelector(`.bn-block[data-id="${drawing.blockId}"]`);
-                  const canvas = blockElement?.querySelector('canvas') as HTMLCanvasElement;
-                  if (canvas) {
-                    console.log('Restoring drawing for block:', {
-                      blockId: drawing.blockId,
-                      width: drawing.width,
-                      height: drawing.height,
-                      pixelDataLength: drawing.pixelData.length
-                    });
+            // Restore scribble overlay data
+            if (data.scribbleData) {
+              const scribbleCanvas = document.querySelector('.blocknote-container > div > canvas') as HTMLCanvasElement;
+              if (scribbleCanvas && data.scribbleData.pixelData) {
+                // Set the canvas dimensions and styles
+                scribbleCanvas.width = data.scribbleData.width;
+                scribbleCanvas.height = data.scribbleData.height;
+                if (data.scribbleData.styleWidth) scribbleCanvas.style.width = data.scribbleData.styleWidth;
+                if (data.scribbleData.styleHeight) scribbleCanvas.style.height = data.scribbleData.styleHeight;
+                if (data.scribbleData.transform) scribbleCanvas.style.transform = data.scribbleData.transform;
 
-                    // Set canvas dimensions
-                    canvas.width = drawing.width;
-                    canvas.height = drawing.height;
-                    
-                    const ctx = canvas.getContext('2d');
-                    if (!ctx) {
-                      console.error('Failed to get canvas context');
-                      return;
-                    }
-
-                    // Create ImageData from the saved pixel data
-                    const imageData = new ImageData(
-                      new Uint8ClampedArray(drawing.pixelData),
-                      drawing.width,
-                      drawing.height
-                    );
-
-                    // Put the image data back on the canvas
-                    ctx.putImageData(imageData, 0, 0);
-
-                    // Verify the restoration
-                    const restoredImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    let nonTransparentPixels = 0;
-                    for (let i = 3; i < restoredImageData.data.length; i += 4) {
-                      if (restoredImageData.data[i] > 0) {
-                        nonTransparentPixels++;
-                      }
-                    }
-                    console.log('Restoration verification:', {
-                      totalPixels: restoredImageData.data.length / 4,
-                      nonTransparentPixels,
-                      percentageDrawn: (nonTransparentPixels / (restoredImageData.data.length / 4) * 100).toFixed(2) + '%'
-                    });
-                  } else {
-                    console.error('Canvas not found for block:', drawing.blockId);
-                  }
-                });
-
-                // Restore scribble overlay data if present
-                if (data.scribbleData) {
-                  const scribbleCanvas = document.querySelector('.blocknote-container > div > canvas') as HTMLCanvasElement;
-                  if (scribbleCanvas) {
-                    const ctx = scribbleCanvas.getContext('2d');
-                    if (ctx) {
-                      // First, ensure the document has the correct scroll height
-                      const originalViewport = data.scribbleData.viewport;
-                      
-                      // Force a reflow to ensure correct document height
-                      document.body.style.minHeight = `${originalViewport.scrollHeight}px`;
-                      
-                      // Immediately scroll to simulate the original scroll position
-                      const scrollRatio = originalViewport.scrollHeight > 0 
-                        ? window.scrollY / originalViewport.scrollHeight 
-                        : 0;
-                      const targetScroll = Math.round(document.documentElement.scrollHeight * scrollRatio);
-                      window.scrollTo(0, targetScroll);
-
-                      // Wait for scroll and reflow to complete
-                      requestAnimationFrame(() => {
-                        // Calculate scale factors based on viewport changes
-                        const currentViewport = {
-                          scrollHeight: document.documentElement.scrollHeight,
-                          scrollWidth: document.documentElement.scrollWidth,
-                          clientHeight: document.documentElement.clientHeight,
-                          clientWidth: document.documentElement.clientWidth,
-                          devicePixelRatio: window.devicePixelRatio
-                        };
-                        
-                        // Calculate scaling factors
-                        const heightScale = currentViewport.scrollHeight / originalViewport.scrollHeight;
-                        const widthScale = currentViewport.scrollWidth / originalViewport.scrollWidth;
-                        const dprScale = currentViewport.devicePixelRatio / originalViewport.devicePixelRatio;
-
-                        // Set canvas dimensions accounting for viewport changes
-                        const scaledWidth = data.scribbleData.width * widthScale;
-                        const scaledHeight = data.scribbleData.height * heightScale;
-                        
-                        // Update canvas style first to maintain aspect ratio
-                        scribbleCanvas.style.width = `${scaledWidth / currentViewport.devicePixelRatio}px`;
-                        scribbleCanvas.style.height = `${scaledHeight / currentViewport.devicePixelRatio}px`;
-                        
-                        // Set actual canvas dimensions
-                        scribbleCanvas.width = scaledWidth;
-                        scribbleCanvas.height = scaledHeight;
-                        
-                        // Initialize drawing settings
-                        ctx.scale(currentViewport.devicePixelRatio, currentViewport.devicePixelRatio);
-                        ctx.strokeStyle = '#000000';
-                        ctx.lineWidth = 2;
-                        ctx.lineCap = 'round';
-                        ctx.lineJoin = 'round';
-
-                        // Create a temporary canvas to scale the image data
-                        const tempCanvas = document.createElement('canvas');
-                        tempCanvas.width = data.scribbleData.width;
-                        tempCanvas.height = data.scribbleData.height;
-                        const tempCtx = tempCanvas.getContext('2d');
-                        
-                        if (tempCtx) {
-                          // Put original image data into temp canvas
-                          const imageData = new ImageData(
-                            new Uint8ClampedArray(data.scribbleData.pixelData),
-                            data.scribbleData.width,
-                            data.scribbleData.height
-                          );
-                          tempCtx.putImageData(imageData, 0, 0);
-
-                          // Scale and draw the image onto the main canvas
-                          ctx.save();
-                          ctx.scale(1/currentViewport.devicePixelRatio, 1/currentViewport.devicePixelRatio);
-                          ctx.drawImage(
-                            tempCanvas, 
-                            0, 
-                            0, 
-                            data.scribbleData.width, 
-                            data.scribbleData.height, 
-                            0, 
-                            0, 
-                            scaledWidth * currentViewport.devicePixelRatio, 
-                            scaledHeight * currentViewport.devicePixelRatio
-                          );
-                          ctx.restore();
-
-                          console.log('Restored scribble overlay data with viewport scaling:', {
-                            originalDimensions: {
-                              width: data.scribbleData.width,
-                              height: data.scribbleData.height
-                            },
-                            scaledDimensions: {
-                              width: scaledWidth,
-                              height: scaledHeight
-                            },
-                            scaleFactors: {
-                              width: widthScale,
-                              height: heightScale,
-                              dpr: dprScale
-                            },
-                            scroll: {
-                              original: originalViewport.scrollHeight,
-                              current: currentViewport.scrollHeight,
-                              targetScroll
-                            }
-                          });
-                        }
-                      });
-                    }
-                  } else {
-                    console.error('Scribble canvas not found for restoration');
-                  }
+                const ctx = scribbleCanvas.getContext('2d');
+                if (ctx) {
+                  const imageData = new ImageData(
+                    new Uint8ClampedArray(data.scribbleData.pixelData),
+                    data.scribbleData.width,
+                    data.scribbleData.height
+                  );
+                  ctx.putImageData(imageData, 0, 0);
                 }
               }
             }
-            
-            // Disconnect the observer once we're done
-            obs.disconnect();
 
-            // Show success message
+            obs.disconnect();
             alert('Notes imported successfully!');
           });
 
-          // Start observing the document for changes
           observer.observe(document.body, {
             childList: true,
             subtree: true
