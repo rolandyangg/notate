@@ -14,7 +14,7 @@ import {
   SuggestionMenuController,
   useCreateBlockNote,
 } from "@blocknote/react";
-import { HiPencilAlt, HiPhotograph, HiSave, HiUpload, HiQuestionMarkCircle } from "react-icons/hi"; // drawing icon, save icon
+import { HiPencilAlt, HiPhotograph, HiSave, HiUpload, HiQuestionMarkCircle, HiPrinter } from "react-icons/hi"; // drawing icon, save icon, HiPrinter icon
 import { Drawing } from "./Drawing.tsx"
 import { Image } from "./Image";
 import { AnnotationOverlay } from "./AnnotationOverlay";
@@ -1018,20 +1018,182 @@ function App() {
     reader.readAsText(file);
   };
 
+  // Add print/export function
+  const handlePrint = () => {
+    // Get the editor content
+    const editorContent = document.querySelector('.blocknote-editor');
+    if (!editorContent) return;
+
+    // Clone the content so we can modify it without affecting the original
+    const contentClone = editorContent.cloneNode(true) as HTMLElement;
+
+    // Remove unnecessary elements and clean up the content
+    contentClone.querySelectorAll('.bn-block-handle, .bn-block-path-button').forEach(el => el.remove());
+    contentClone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    contentClone.querySelectorAll('.bn-block').forEach(block => {
+      block.removeAttribute('data-id');
+      block.removeAttribute('draggable');
+      (block as HTMLElement).style.cursor = 'default';
+      (block as HTMLElement).style.userSelect = 'text';
+    });
+
+    // Create print-friendly styles
+    const printStyles = `
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        
+        body {
+          font-family: 'Inter', sans-serif;
+          padding: 40px;
+          max-width: 800px;
+          margin: 0 auto;
+          color: #333;
+          line-height: 1.5;
+          background: white;
+        }
+
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
+
+        img {
+          max-width: 100%;
+          height: auto;
+          margin: 16px 0;
+          border-radius: 4px;
+        }
+
+        canvas {
+          max-width: 100%;
+          height: auto;
+          margin: 16px 0;
+          border-radius: 4px;
+        }
+
+        .bn-container {
+          margin-bottom: 20px;
+        }
+
+        .bn-block {
+          margin: 8px 0;
+          page-break-inside: avoid;
+        }
+
+        .bn-block[data-content-type="heading"] {
+          margin-top: 24px;
+          margin-bottom: 16px;
+          page-break-after: avoid;
+        }
+
+        .bn-block[data-content-type="bulletListItem"],
+        .bn-block[data-content-type="numberedListItem"] {
+          margin: 4px 0;
+        }
+
+        .bn-block[data-content-type="paragraph"] {
+          margin: 8px 0;
+        }
+
+        /* Hide UI elements */
+        .bn-block-handle,
+        .bn-block-path-button,
+        [contenteditable="true"]::before,
+        [contenteditable="true"]::after {
+          display: none !important;
+        }
+
+        /* Print-specific settings */
+        @media print {
+          body {
+            padding: 20px;
+          }
+          
+          @page {
+            margin: 1.5cm;
+          }
+        }
+      </style>
+    `;
+
+    // Create an iframe to hold the print content
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    // Write the content to the iframe
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      document.body.removeChild(iframe);
+      return;
+    }
+
+    iframeDoc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Print Document</title>
+          <meta charset="utf-8">
+          ${printStyles}
+        </head>
+        <body>
+          ${contentClone.outerHTML}
+        </body>
+      </html>
+    `);
+    iframeDoc.close();
+
+    // Wait for images, fonts, and styles to load
+    const loadPromises = [
+      new Promise<void>(resolve => {
+        const fontPromise = iframeDoc.fonts?.ready;
+        if (fontPromise) {
+          fontPromise.then(() => resolve());
+        } else {
+          resolve();
+        }
+      }),
+      new Promise<void>(resolve => {
+        const images = Array.from(iframeDoc.images);
+        const loadedImages = images.map(img => 
+          img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })
+        );
+        Promise.all(loadedImages).then(() => resolve());
+      })
+    ];
+
+    Promise.all(loadPromises).then(() => {
+      // Print the iframe content
+      iframe.contentWindow?.print();
+      
+      // Remove the iframe after printing
+      const cleanup = () => {
+        document.body.removeChild(iframe);
+      };
+      
+      if (iframe.contentWindow) {
+        iframe.contentWindow.onafterprint = cleanup;
+        // Fallback cleanup in case onafterprint doesn't fire
+        setTimeout(cleanup, 1000);
+      }
+    });
+  };
+
   return (
-    <div className="blocknote-container">
+    <div className="blocknote-container" style={{ position: "relative" }}>
       <OverlayToolbar mode={mode} setMode={setMode} />
       {showTutorial && (
         <Tutorial onDismiss={() => setShowTutorial(false)} />
       )}
-      <div style={{ 
-        position: 'fixed', 
-        bottom: '20px', 
-        right: '24px', 
-        zIndex: 1000,
+      <div style={{
+        position: 'fixed',
+        bottom: 20,
+        right: 40,
         display: 'flex',
         flexDirection: 'column',
-        gap: '10px'
+        gap: '10px',
+        zIndex: 1000,
       }}>
         <Tooltip text="Export Notes">
           <button
@@ -1103,6 +1265,30 @@ function App() {
             aria-label="Show Help"
           >
             <HiQuestionMarkCircle size={24} color="#5A5A5A" />
+          </button>
+        </Tooltip>
+        <Tooltip text="Print/Export">
+          <button
+            onClick={handlePrint}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              margin: 0,
+              cursor: 'pointer',
+              outline: 'none',
+              borderRadius: '12px',
+              width: 56,
+              height: 56,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+              backgroundColor: '#fff',
+            }}
+            aria-label="Print/Export"
+          >
+            <HiPrinter size={24} color="#5A5A5A" />
           </button>
         </Tooltip>
         <input
