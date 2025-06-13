@@ -8,6 +8,8 @@ A lightweight, minimalist text editor designed to make integrating annotations a
 
 [View our full poster](readme/poster.pdf)
 
+[Watch our demo](https://youtu.be/KEd05t3sT-0?si=DCRYJBAOs0fBtYyU)
+
 Created by Cheryl Wu, Huixi Lee, Roland Yang, and Sean Chan for UCLA's CS188: Human-Computer Interaction Class.
 
 ## Getting Started
